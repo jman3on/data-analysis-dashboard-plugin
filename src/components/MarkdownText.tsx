@@ -1,0 +1,84 @@
+import React from 'react';
+
+interface MarkdownTextProps {
+  content: string;
+}
+
+type InlinePart = string | React.ReactElement;
+
+function renderInline(text: string): InlinePart[] {
+  const parts: InlinePart[] = [];
+  const pattern = /\*\*(.+?)\*\*/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text))) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push(<strong key={`${match.index}-${match[1]}`}>{match[1]}</strong>);
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts;
+}
+
+export function MarkdownText({ content }: MarkdownTextProps) {
+  const lines = content.split(/\r?\n/);
+  const nodes: React.ReactNode[] = [];
+  let listItems: string[] = [];
+
+  function flushList(key: string) {
+    if (!listItems.length) return;
+    nodes.push(
+      <ul key={key}>
+        {listItems.map((item, index) => (
+          <li key={`${key}-${index}`}>{renderInline(item)}</li>
+        ))}
+      </ul>,
+    );
+    listItems = [];
+  }
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+    const key = `line-${index}`;
+
+    if (!trimmed) {
+      flushList(`${key}-list`);
+      return;
+    }
+
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      listItems.push(trimmed.slice(2).trim());
+      return;
+    }
+
+    flushList(`${key}-list`);
+
+    if (trimmed.startsWith('### ')) {
+      nodes.push(<h3 key={key}>{renderInline(trimmed.slice(4))}</h3>);
+      return;
+    }
+
+    if (trimmed.startsWith('## ')) {
+      nodes.push(<h2 key={key}>{renderInline(trimmed.slice(3))}</h2>);
+      return;
+    }
+
+    if (trimmed.startsWith('# ')) {
+      nodes.push(<h1 key={key}>{renderInline(trimmed.slice(2))}</h1>);
+      return;
+    }
+
+    nodes.push(<p key={key}>{renderInline(trimmed)}</p>);
+  });
+
+  flushList('last-list');
+
+  return <article className="markdown-text">{nodes}</article>;
+}
