@@ -92,25 +92,32 @@ export async function readSdkData(
   const sdk = getDashboardSdk(rawSdk);
   if (!sdk.getConfig && !sdk.getData && !sdk.getPreviewData) return undefined;
 
-  const actualState = parseDashboardState(sdk.state) || state;
+  let actualState = parseDashboardState(sdk.state) || state;
   const canReadSavedConfig = actualState !== DashboardState.Create;
   let config: PluginConfig = { state: actualState };
   if (canReadSavedConfig && sdk.getConfig) {
     try {
       config = normalizeConfig(await sdk.getConfig(), actualState);
     } catch {
+      actualState = DashboardState.Create;
       config = { state: actualState };
     }
   }
   const shouldPreview = actualState === DashboardState.Create || actualState === DashboardState.Config;
-  const rawData =
-    shouldPreview && sdk.getPreviewData
-      ? await sdk.getPreviewData(config.dataConditions)
-      : sdk.getData
-        ? await sdk.getData()
-        : sdk.getPreviewData
-          ? await sdk.getPreviewData()
+  const hasDataConditions = Array.isArray(config.dataConditions)
+    ? config.dataConditions.length > 0
+    : Boolean(config.dataConditions);
+  let rawData: unknown;
+  try {
+    rawData =
+      shouldPreview && sdk.getPreviewData && hasDataConditions
+        ? await sdk.getPreviewData(config.dataConditions)
+        : !shouldPreview && sdk.getData
+          ? await sdk.getData()
           : undefined;
+  } catch {
+    rawData = undefined;
+  }
   const rows = normalizeRows(rawData);
   const latest = rows[0];
 
