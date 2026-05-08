@@ -1,5 +1,6 @@
 import { DEFAULT_CONFIG } from '../constants';
 import { DashboardState, PluginConfig, SummaryPayload } from '../types';
+import { dashboard as officialDashboard } from '@lark-base-open/js-sdk';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -24,6 +25,7 @@ declare global {
 }
 
 async function loadRuntimeSdk(): Promise<RuntimeSdk | undefined> {
+  if (officialDashboard) return officialDashboard as RuntimeSdk;
   if (window.BIPluginSDK) return window.BIPluginSDK;
 
   try {

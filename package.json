@@ -11,10 +11,11 @@
   "dependencies": {
     "@douyinfe/semi-icons": "^2.76.0",
     "@douyinfe/semi-ui": "^2.76.0",
-    "vite": "4.5.3",
-    "typescript": "^5.4.5",
+    "@lark-base-open/js-sdk": "^0.4.0-alpha.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "typescript": "^5.4.5",
+    "vite": "4.5.3"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
