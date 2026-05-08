@@ -17,7 +17,10 @@ function mergeConfig(...configs: Array<PluginConfig | undefined>): Required<Plug
       contentFieldId: config.contentFieldId ?? merged.contentFieldId,
       title: config.title ?? merged.title,
       showUpdatedAt: config.showUpdatedAt ?? merged.showUpdatedAt,
+      defaultPeriod: config.defaultPeriod ?? merged.defaultPeriod,
+      accentColor: config.accentColor ?? merged.accentColor,
       state: config.state ?? merged.state,
+      dataConditions: config.dataConditions ?? merged.dataConditions,
     };
   }, DEFAULT_CONFIG);
 }

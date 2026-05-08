@@ -4,10 +4,13 @@ import { DashboardState, PluginConfig, SummaryPayload } from '../types';
 type UnknownRecord = Record<string, unknown>;
 
 interface RuntimeSdk {
+  state?: DashboardState | string;
   getConfig?: () => Promise<PluginConfig> | PluginConfig;
   getData?: () => Promise<unknown> | unknown;
-  getPreviewData?: () => Promise<unknown> | unknown;
-  onConfigChange?: (handler: (config: PluginConfig) => void) => void;
+  getPreviewData?: (dataConditions?: unknown) => Promise<unknown> | unknown;
+  saveConfig?: (config: unknown) => Promise<boolean> | boolean;
+  setRendered?: () => Promise<boolean> | boolean;
+  onConfigChange?: (handler: (config: unknown) => void) => void;
   onDataChange?: (handler: (data: unknown) => void) => void;
   dashboard?: RuntimeSdk;
   Dashboard?: RuntimeSdk;
@@ -38,6 +41,29 @@ function getDashboardSdk(sdk: RuntimeSdk): RuntimeSdk {
   return sdk.Dashboard || sdk.dashboard || sdk;
 }
 
+function parseDashboardState(value: unknown): DashboardState | undefined {
+  if (typeof value === 'string' && Object.values(DashboardState).includes(value as DashboardState)) {
+    return value as DashboardState;
+  }
+  return undefined;
+}
+
+function normalizeConfig(config: unknown, fallbackState: DashboardState): PluginConfig {
+  if (!config || typeof config !== 'object') return { state: fallbackState };
+  const record = config as UnknownRecord;
+  const customConfig =
+    record.customConfig && typeof record.customConfig === 'object'
+      ? (record.customConfig as PluginConfig)
+      : {};
+
+  return {
+    ...(record as PluginConfig),
+    ...customConfig,
+    dataConditions: record.dataConditions || (record as PluginConfig).dataConditions,
+    state: parseDashboardState((record as PluginConfig).state) || fallbackState,
+  };
+}
+
 function pickString(record: UnknownRecord, keys: string[]): string | undefined {
   for (const key of keys) {
     const value = record[key];
@@ -64,12 +90,20 @@ export async function readSdkData(
   const sdk = getDashboardSdk(rawSdk);
   if (!sdk.getConfig && !sdk.getData && !sdk.getPreviewData) return undefined;
 
-  const canReadSavedConfig = state !== DashboardState.Create;
-  const config = canReadSavedConfig && sdk.getConfig ? await sdk.getConfig() : {};
-  const shouldPreview = state === DashboardState.Create || state === DashboardState.Config;
+  const actualState = parseDashboardState(sdk.state) || state;
+  const canReadSavedConfig = actualState !== DashboardState.Create;
+  let config: PluginConfig = { state: actualState };
+  if (canReadSavedConfig && sdk.getConfig) {
+    try {
+      config = normalizeConfig(await sdk.getConfig(), actualState);
+    } catch {
+      config = { state: actualState };
+    }
+  }
+  const shouldPreview = actualState === DashboardState.Create || actualState === DashboardState.Config;
   const rawData =
     shouldPreview && sdk.getPreviewData
-      ? await sdk.getPreviewData()
+      ? await sdk.getPreviewData(config.dataConditions)
       : sdk.getData
         ? await sdk.getData()
         : sdk.getPreviewData
@@ -113,4 +147,40 @@ export async function subscribeSdkChanges(onChange: () => void): Promise<() => v
   sdk.onConfigChange?.(onChange);
   sdk.onDataChange?.(onChange);
   return () => undefined;
+}
+
+export async function saveDashboardConfig(config: PluginConfig): Promise<boolean> {
+  const rawSdk = await loadRuntimeSdk();
+  const sdk = rawSdk ? getDashboardSdk(rawSdk) : undefined;
+  if (!sdk?.saveConfig) return false;
+
+  const dataConditions =
+    config.dataConditions ||
+    (config.tableId
+      ? [
+          {
+            tableId: config.tableId,
+          },
+        ]
+      : []);
+
+  return Boolean(
+    await sdk.saveConfig({
+      dataConditions,
+      customConfig: {
+        tableId: config.tableId,
+        contentFieldId: config.contentFieldId,
+        title: config.title,
+        showUpdatedAt: config.showUpdatedAt,
+        defaultPeriod: config.defaultPeriod,
+        accentColor: config.accentColor,
+      },
+    }),
+  );
+}
+
+export async function markDashboardRendered(): Promise<void> {
+  const rawSdk = await loadRuntimeSdk();
+  const sdk = rawSdk ? getDashboardSdk(rawSdk) : undefined;
+  await sdk?.setRendered?.();
 }

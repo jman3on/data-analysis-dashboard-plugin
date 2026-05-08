@@ -50,8 +50,20 @@ body {
   background: var(--surface-muted);
 }
 
+.dashboard-shell.config-mode {
+  min-height: 100vh;
+  padding: 0;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 0;
+  background: var(--surface);
+}
+
 .dashboard-shell.state-fullscreen {
   padding: 24px;
+}
+
+.dashboard-shell.config-mode.state-fullscreen {
+  padding: 0;
 }
 
 .loading-shell {
@@ -68,6 +80,13 @@ body {
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+.config-mode .summary-panel {
+  min-height: 100vh;
+  border-width: 0 1px 0 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .panel-header,
@@ -188,6 +207,80 @@ body {
   margin: 0;
 }
 
+.config-panel {
+  min-width: 0;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: 1fr 70px;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.config-panel-scroll {
+  min-height: 0;
+  overflow: auto;
+  padding: 24px 20px;
+}
+
+.config-field {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.config-field .semi-typography,
+.config-check {
+  color: var(--text);
+}
+
+.config-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  cursor: pointer;
+}
+
+.config-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 24px);
+  gap: 10px;
+}
+
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.color-swatch.is-selected {
+  border-color: var(--surface);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.config-note {
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+.config-actions {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
 :root[data-theme='dark'] .semi-typography,
 :root[data-theme='dark'] .semi-select-selection-text,
 :root[data-theme='dark'] .semi-empty-description {
@@ -196,7 +289,8 @@ body {
 
 :root[data-theme='dark'] .semi-select,
 :root[data-theme='dark'] .semi-select-selection,
-:root[data-theme='dark'] .semi-button {
+:root[data-theme='dark'] .semi-button,
+:root[data-theme='dark'] .semi-input-wrapper {
   background: var(--surface-muted);
   border-color: var(--border);
   color: var(--text);
@@ -205,6 +299,17 @@ body {
 @media (max-width: 520px) {
   .dashboard-shell {
     padding: 10px;
+  }
+
+  .dashboard-shell.config-mode {
+    grid-template-columns: 1fr;
+  }
+
+  .config-panel {
+    height: auto;
+    min-height: 360px;
+    border-left: 0;
+    border-top: 1px solid var(--border);
   }
 
   .summary-panel {

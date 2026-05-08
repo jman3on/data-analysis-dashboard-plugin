@@ -1,11 +1,14 @@
-import { DashboardState, PeriodKey } from './types';
+import { DashboardState, PeriodKey, PluginConfig } from './types';
 
-export const DEFAULT_CONFIG = {
+export const DEFAULT_CONFIG: Required<PluginConfig> = {
   tableId: 'SPSTbnjWeaIbo3smY2UcAdVZnab',
   contentFieldId: 'fld_summary',
   title: '数据分析',
   showUpdatedAt: true,
+  defaultPeriod: 'week',
+  accentColor: '#3370ff',
   state: DashboardState.View,
+  dataConditions: undefined,
 };
 
 export const PERIOD_OPTIONS: Array<{ label: string; value: PeriodKey }> = [
@@ -13,6 +16,17 @@ export const PERIOD_OPTIONS: Array<{ label: string; value: PeriodKey }> = [
   { label: '月', value: 'month' },
   { label: '季度', value: 'quarter' },
   { label: '半年', value: 'half' },
+];
+
+export const COLOR_OPTIONS = [
+  '#343A40',
+  '#3370FF',
+  '#5B5CE2',
+  '#2FB344',
+  '#22B8CF',
+  '#FAB005',
+  '#FD7E14',
+  '#F06565',
 ];
 
 export const DEMO_SUMMARIES: Record<PeriodKey, string> = {

@@ -12,7 +12,10 @@ export interface PluginConfig {
   contentFieldId?: string;
   title?: string;
   showUpdatedAt?: boolean;
+  defaultPeriod?: PeriodKey;
+  accentColor?: string;
   state?: DashboardState;
+  dataConditions?: unknown;
 }
 
 export interface SummaryPayload {
