@@ -208,8 +208,6 @@ function fieldMatchesAnyName(field: FieldMetaLike, names: string[]): boolean {
 }
 
 function inferPeriodFields(fieldMetas: FieldMetaLike[], config: PluginConfig): PeriodFieldConfig[] {
-  if (config.periodFields?.length) return config.periodFields;
-
   const inferred = PERIOD_FIELD_CANDIDATES
     .map((candidate) => {
       const field = fieldMetas.find((item) => fieldMatchesAnyName(item, candidate.names));
@@ -471,14 +469,15 @@ async function readBaseTablePayload(config: PluginConfig): Promise<SummaryPayloa
       if (text) result[periodField.value] = text;
       return result;
     }, {});
-    const summary = summaries[config.defaultPeriod || ''] || pickCellString(fields, fieldMetas, contentKeys);
+    const selectedPeriod = summaries[config.defaultPeriod || ''] ? config.defaultPeriod : periodFields[0]?.value;
+    const summary = summaries[selectedPeriod || ''] || pickCellString(fields, fieldMetas, contentKeys);
     if (!summary) continue;
 
     return {
       title: pickCellString(fields, fieldMetas, TITLE_FIELD_FALLBACKS),
       summary,
       summaries,
-      period: config.defaultPeriod || periodFields[0]?.value,
+      period: selectedPeriod,
       periodOptions: periodFields.map(({ label, value }) => ({ label, value })),
       updatedAt: pickCellString(fields, fieldMetas, UPDATED_AT_FIELD_FALLBACKS),
     };
@@ -498,11 +497,8 @@ async function resolveDataConditions(config: PluginConfig): Promise<UnknownRecor
       : await getDefaultTableId();
   if (!tableId) return [];
 
-  const periodField = config.periodFields?.find((field) => field.value === config.defaultPeriod)
-    || config.periodFields?.[0];
   const groupFieldIds = [
     config.contentTypeFieldId,
-    periodField?.fieldId || config.contentFieldId,
   ].filter((fieldId, index, fields): fieldId is string =>
     Boolean(fieldId && fields.indexOf(fieldId) === index),
   );
@@ -553,19 +549,19 @@ export async function readSdkData(
     rawData = undefined;
   }
 
-  const dashboardPayload = readDashboardMatrixPayload(rawData, config);
-  if (dashboardPayload?.summary) {
-    return {
-      config,
-      payload: dashboardPayload,
-    };
-  }
-
   const basePayload = await readBaseTablePayload(config).catch(() => undefined);
   if (basePayload?.summary) {
     return {
       config,
       payload: basePayload,
+    };
+  }
+
+  const dashboardPayload = readDashboardMatrixPayload(rawData, config);
+  if (dashboardPayload?.summary) {
+    return {
+      config,
+      payload: dashboardPayload,
     };
   }
 
@@ -624,7 +620,7 @@ export async function saveDashboardConfig(config: PluginConfig): Promise<boolean
         contentFieldId: config.contentFieldId,
         contentTypeFieldId: config.contentTypeFieldId,
         contentTypeValue: config.contentTypeValue,
-        periodFields: config.periodFields,
+        periodFields: [],
         title: config.title,
         showUpdatedAt: config.showUpdatedAt,
         defaultPeriod: config.defaultPeriod,

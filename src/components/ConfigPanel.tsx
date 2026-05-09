@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Button, Input, Select, Typography } from '@douyinfe/semi-ui';
-import { APPEARANCE_OPTIONS, COLOR_OPTIONS, PERIOD_OPTIONS } from '../constants';
+import { APPEARANCE_OPTIONS, COLOR_OPTIONS } from '../constants';
 import { loadDataFields, loadDataTables } from '../data/sdkSource';
-import { AppearanceMode, DataFieldOption, DataTableOption, PeriodFieldConfig, PeriodKey, PluginConfig } from '../types';
+import { AppearanceMode, DataFieldOption, DataTableOption, PluginConfig } from '../types';
 
 interface ConfigPanelProps {
   config: Required<PluginConfig>;
@@ -14,9 +14,6 @@ interface ConfigPanelProps {
 export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelProps) {
   const [tableOptions, setTableOptions] = useState<DataTableOption[]>([]);
   const [fieldOptions, setFieldOptions] = useState<DataFieldOption[]>([]);
-  const periodOptions = config.periodFields.length
-    ? config.periodFields.map(({ label, value }) => ({ label, value }))
-    : PERIOD_OPTIONS;
 
   const update = (patch: Partial<Required<PluginConfig>>) => {
     onChange({
@@ -44,26 +41,6 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
       disposed = true;
     };
   }, [config.tableId]);
-
-  const updatePeriodFields = (value: unknown) => {
-    const selectedFieldIds = Array.isArray(value) ? value.map(String) : [];
-    const nextPeriodFields: PeriodFieldConfig[] = selectedFieldIds
-      .map((fieldId) => {
-        const field = fieldOptions.find((option) => option.value === fieldId);
-        if (!field) return undefined;
-        return {
-          fieldId,
-          label: field.fieldName || field.label,
-          value: fieldId,
-        };
-      })
-      .filter((field): field is PeriodFieldConfig => Boolean(field));
-
-    update({
-      periodFields: nextPeriodFields,
-      defaultPeriod: nextPeriodFields[0]?.value || 'week',
-    });
-  };
 
   return (
     <aside className="config-panel">
@@ -118,40 +95,6 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
             placeholder="例如：过稿分析"
             onChange={(value) => update({ contentTypeValue: value })}
           />
-        </div>
-
-        <div className="config-field">
-          <Typography.Text strong>默认时间维度</Typography.Text>
-          <Select
-            value={config.defaultPeriod}
-            optionList={periodOptions}
-            onChange={(value) => update({ defaultPeriod: value as PeriodKey, })}
-          />
-        </div>
-
-        <div className="config-field">
-          <Typography.Text strong>时间维度字段</Typography.Text>
-          <Typography.Text type="secondary" className="config-help">
-            多选承载分析结论的字段，例如「周、月、季度、半年」。下拉时间维度会跟随这里变化。
-          </Typography.Text>
-          {fieldOptions.length > 0 ? (
-            <Select
-              multiple
-              value={config.periodFields.map((field) => field.fieldId)}
-              optionList={fieldOptions}
-              placeholder="自动识别：周 / 月 / 季度 / 半年"
-              onChange={updatePeriodFields}
-            />
-          ) : (
-            <Input
-              value={config.contentFieldId || ''}
-              placeholder="无法读取字段时，可填写一个备用字段名或字段 ID"
-              onChange={(value) => update({ contentFieldId: value })}
-            />
-          )}
-          <Typography.Text type="secondary" className="config-help compact">
-            不选择时会自动匹配：周 / 月 / 季度 / 半年 / summary / analysis / content / text
-          </Typography.Text>
         </div>
 
         <label className="config-check">
