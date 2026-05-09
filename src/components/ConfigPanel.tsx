@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Input, Select, Typography } from '@douyinfe/semi-ui';
 import { APPEARANCE_OPTIONS, COLOR_OPTIONS } from '../constants';
-import { loadDataFields, loadDataTables } from '../data/sdkSource';
+import { loadContentValueOptions, loadDataFields, loadDataTables } from '../data/sdkSource';
 import { AppearanceMode, DataFieldOption, DataTableOption, PluginConfig } from '../types';
 
 interface ConfigPanelProps {
@@ -14,6 +14,7 @@ interface ConfigPanelProps {
 export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelProps) {
   const [tableOptions, setTableOptions] = useState<DataTableOption[]>([]);
   const [fieldOptions, setFieldOptions] = useState<DataFieldOption[]>([]);
+  const [contentOptions, setContentOptions] = useState<DataFieldOption[]>([]);
 
   const update = (patch: Partial<Required<PluginConfig>>) => {
     onChange({
@@ -35,12 +36,39 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
   useEffect(() => {
     let disposed = false;
     loadDataFields(config.tableId).then((options) => {
-      if (!disposed) setFieldOptions(options);
+      if (disposed) return;
+      setFieldOptions(options);
+
+      if (!config.contentTypeFieldId) {
+        const contentField = options.find((option) => option.fieldName === '内容' || option.label === '内容');
+        if (contentField) {
+          update({
+            contentTypeFieldId: contentField.value,
+            contentTypeValue: '',
+          });
+        }
+      }
     });
     return () => {
       disposed = true;
     };
-  }, [config.tableId]);
+  }, [config.tableId, config.contentTypeFieldId]);
+
+  useEffect(() => {
+    let disposed = false;
+    loadContentValueOptions(config.tableId, config.contentTypeFieldId).then((options) => {
+      if (disposed) return;
+      const hasCurrentValue = options.some((option) => option.value === config.contentTypeValue);
+      setContentOptions(
+        config.contentTypeValue && !hasCurrentValue
+          ? [{ label: config.contentTypeValue, value: config.contentTypeValue }, ...options]
+          : options,
+      );
+    });
+    return () => {
+      disposed = true;
+    };
+  }, [config.tableId, config.contentTypeFieldId, config.contentTypeValue]);
 
   return (
     <aside className="config-panel">
@@ -67,6 +95,7 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
               tableId: String(value || ''),
               contentFieldId: '',
               contentTypeFieldId: '',
+              contentTypeValue: '',
               periodFields: [],
             })}
           />
@@ -81,19 +110,28 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
             value={config.contentTypeFieldId || undefined}
             optionList={fieldOptions}
             placeholder="例如：内容"
-            onChange={(value) => update({ contentTypeFieldId: String(value || '') })}
+            onChange={(value) => update({
+              contentTypeFieldId: String(value || ''),
+              contentTypeValue: '',
+            })}
           />
         </div>
 
         <div className="config-field">
-          <Typography.Text strong>内容标题</Typography.Text>
+          <Typography.Text strong>内容项</Typography.Text>
           <Typography.Text type="secondary" className="config-help">
-            填写要展示的那一行标题，例如「过稿分析」。留空则读取当前权限范围内第一条有内容的记录。
+            选择这个插件要展示的分析维度，例如「过稿分析」。可以放置多个插件，分别选择不同内容项。
           </Typography.Text>
-          <Input
-            value={config.contentTypeValue || ''}
-            placeholder="例如：过稿分析"
-            onChange={(value) => update({ contentTypeValue: value })}
+          <Select
+            value={config.contentTypeValue || undefined}
+            optionList={contentOptions}
+            placeholder={
+              config.contentTypeFieldId
+                ? contentOptions.length ? '请选择内容项' : '未读取到内容项'
+                : '请先选择内容类型字段'
+            }
+            disabled={!config.contentTypeFieldId}
+            onChange={(value) => update({ contentTypeValue: String(value || '') })}
           />
         </div>
 

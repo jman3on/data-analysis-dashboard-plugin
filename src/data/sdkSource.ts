@@ -450,6 +450,33 @@ export async function loadDataFields(tableId?: string): Promise<DataFieldOption[
   }
 }
 
+export async function loadContentValueOptions(tableId?: string, fieldId?: string): Promise<DataFieldOption[]> {
+  if (!isValidTableId(tableId) || !fieldId) return [];
+
+  try {
+    const table = (await withTimeout(officialBase.getTableById?.(tableId))) as TableLike | undefined;
+    const fieldMetas = ((await withTimeout(table?.getFieldMetaList?.())) || []) as FieldMetaLike[];
+    const response = await withTimeout(table?.getRecords?.({ pageSize: 500 }));
+    const records = response?.records || [];
+    const seen = new Set<string>();
+
+    return records
+      .map((record) => {
+        const fields = (record.fields && typeof record.fields === 'object' ? record.fields : record) as UnknownRecord;
+        return pickCellString(fields, fieldMetas, [fieldId]);
+      })
+      .filter((value): value is string => {
+        const normalized = normalizeComparableText(value);
+        if (!normalized || seen.has(normalized)) return false;
+        seen.add(normalized);
+        return true;
+      })
+      .map((value) => ({ label: value, value }));
+  } catch {
+    return [];
+  }
+}
+
 async function readBaseTablePayload(config: PluginConfig): Promise<SummaryPayload | undefined> {
   const table = await getTableByConfig(config);
   if (!table?.getFieldMetaList || !table.getRecords) return undefined;
