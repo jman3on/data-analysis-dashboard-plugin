@@ -1,6 +1,6 @@
 import { DEFAULT_CONFIG } from '../constants';
 import { DashboardState, PluginConfig, SummaryPayload } from '../types';
-import { dashboard as officialDashboard } from '@lark-base-open/js-sdk';
+import { base as officialBase, dashboard as officialDashboard } from '@lark-base-open/js-sdk';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -15,6 +15,11 @@ interface RuntimeSdk {
   onDataChange?: (handler: (data: unknown) => void) => void;
   dashboard?: RuntimeSdk;
   Dashboard?: RuntimeSdk;
+}
+
+interface TableLike {
+  id?: string;
+  getMeta?: () => Promise<{ id?: string; name?: string }> | { id?: string; name?: string };
 }
 
 declare global {
@@ -81,6 +86,54 @@ function normalizeRows(data: unknown): UnknownRecord[] {
   const rows = record.records || record.rows || record.data;
   if (Array.isArray(rows)) return rows.filter((item): item is UnknownRecord => Boolean(item && typeof item === 'object'));
   return [record];
+}
+
+function isValidTableId(tableId: unknown): tableId is string {
+  return typeof tableId === 'string' && /^tbl[A-Za-z0-9]/.test(tableId);
+}
+
+function normalizeDataConditions(dataConditions: unknown): UnknownRecord[] {
+  if (!dataConditions) return [];
+  const conditions = Array.isArray(dataConditions) ? dataConditions : [dataConditions];
+  return conditions.filter((condition): condition is UnknownRecord => Boolean(condition && typeof condition === 'object'));
+}
+
+async function getDefaultTableId(): Promise<string | undefined> {
+  try {
+    const activeTable = (await officialBase.getActiveTable?.()) as TableLike | undefined;
+    if (isValidTableId(activeTable?.id)) return activeTable.id;
+    const activeMeta = await activeTable?.getMeta?.();
+    if (isValidTableId(activeMeta?.id)) return activeMeta.id;
+  } catch {
+    // Some dashboard hosts do not expose active table; fall back to the table list.
+  }
+
+  try {
+    const tableList = (await officialBase.getTableList?.()) as TableLike[] | undefined;
+    const firstTable = tableList?.[0];
+    if (isValidTableId(firstTable?.id)) return firstTable.id;
+    const firstMeta = await firstTable?.getMeta?.();
+    if (isValidTableId(firstMeta?.id)) return firstMeta.id;
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
+async function resolveDataConditions(config: PluginConfig): Promise<UnknownRecord[]> {
+  const savedConditions = normalizeDataConditions(config.dataConditions);
+  if (savedConditions.length > 0) return savedConditions;
+
+  const tableId = isValidTableId(config.tableId) ? config.tableId : await getDefaultTableId();
+  if (!tableId) return [];
+
+  return [
+    {
+      tableId,
+      series: 'COUNTA',
+    },
+  ];
 }
 
 export async function readSdkData(
@@ -163,21 +216,14 @@ export async function saveDashboardConfig(config: PluginConfig): Promise<boolean
   const sdk = rawSdk ? getDashboardSdk(rawSdk) : undefined;
   if (!sdk?.saveConfig) return false;
 
-  const dataConditions =
-    config.dataConditions ||
-    (config.tableId
-      ? [
-          {
-            tableId: config.tableId,
-          },
-        ]
-      : []);
+  const dataConditions = await resolveDataConditions(config);
+  if (dataConditions.length === 0) return false;
 
   return Boolean(
     await sdk.saveConfig({
       dataConditions,
       customConfig: {
-        tableId: config.tableId,
+        tableId: dataConditions[0]?.tableId || config.tableId,
         contentFieldId: config.contentFieldId,
         title: config.title,
         showUpdatedAt: config.showUpdatedAt,

@@ -289,11 +289,18 @@ body {
 
 :root[data-theme='dark'] .semi-select,
 :root[data-theme='dark'] .semi-select-selection,
-:root[data-theme='dark'] .semi-button,
 :root[data-theme='dark'] .semi-input-wrapper {
   background: var(--surface-muted);
   border-color: var(--border);
   color: var(--text);
+}
+
+.config-actions .semi-button-primary,
+.config-actions .semi-button-primary:hover,
+.config-actions .semi-button-primary:active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 @media (max-width: 520px) {
