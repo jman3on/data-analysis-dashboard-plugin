@@ -189,9 +189,14 @@ function pickCellString(fields: UnknownRecord, fieldMetas: FieldMetaLike[], keys
 
     const matchedField = fieldMetas.find((field) => readFieldId(field) === key || readFieldName(field) === key);
     const fieldId = matchedField ? readFieldId(matchedField) : undefined;
+    const fieldName = matchedField ? readFieldName(matchedField) : undefined;
     if (fieldId) {
       const byFieldId = cellToString(fields[fieldId]);
       if (byFieldId) return byFieldId;
+    }
+    if (fieldName && fieldName !== fieldId) {
+      const byFieldName = cellToString(fields[fieldName]);
+      if (byFieldName) return byFieldName;
     }
   }
 
@@ -542,6 +547,7 @@ async function resolveDataConditions(config: PluginConfig): Promise<UnknownRecor
 
 export async function readSdkData(
   state: DashboardState = DashboardState.View,
+  configOverride?: PluginConfig,
 ): Promise<{ config: PluginConfig; payload: SummaryPayload } | undefined> {
   const rawSdk = await loadRuntimeSdk();
   if (!rawSdk) return undefined;
@@ -559,6 +565,14 @@ export async function readSdkData(
       actualState = DashboardState.Create;
       config = { state: actualState };
     }
+  }
+  if (configOverride) {
+    config = {
+      ...config,
+      ...configOverride,
+      dataConditions: configOverride.dataConditions ?? config.dataConditions,
+      state: actualState,
+    };
   }
 
   const shouldPreview = actualState === DashboardState.Create || actualState === DashboardState.Config;

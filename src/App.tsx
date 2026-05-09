@@ -1,4 +1,4 @@
-import { CSSProperties, useEffect, useMemo, useState } from 'react';
+import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Select, Spin, Tag, Toast, Typography } from '@douyinfe/semi-ui';
 import { IconRefresh } from '@douyinfe/semi-icons';
 import { bridge } from '@lark-base-open/js-sdk';
@@ -34,6 +34,7 @@ export default function App(props: AppProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const previewRequestId = useRef(0);
 
   const refresh = async (showToast = false) => {
     try {
@@ -129,7 +130,29 @@ export default function App(props: AppProps) {
 
   const handleConfigChange = (nextConfig: Required<PluginConfig>) => {
     setDraftConfig(nextConfig);
-    setPeriod(nextConfig.defaultPeriod);
+    const requestId = previewRequestId.current + 1;
+    previewRequestId.current = requestId;
+
+    loadDashboardData(props, nextConfig)
+      .then((next) => {
+        if (previewRequestId.current !== requestId) return;
+        setData({
+          ...next,
+          config: nextConfig,
+        });
+
+        const nextPeriodOptions = next.payload.periodOptions?.length
+          ? next.payload.periodOptions
+          : nextConfig.periodFields.length
+            ? nextConfig.periodFields.map(({ label, value }) => ({ label, value }))
+            : PERIOD_OPTIONS;
+        const canKeepCurrentPeriod = nextPeriodOptions.some((option) => option.value === period);
+        setPeriod(canKeepCurrentPeriod ? period : next.payload.period || nextPeriodOptions[0]?.value || 'week');
+      })
+      .catch((error) => {
+        Toast.error('读取分析结果失败');
+        console.error(error);
+      });
   };
 
   const handleSaveConfig = async () => {
