@@ -44,6 +44,12 @@ interface RecordLike {
   [key: string]: unknown;
 }
 
+interface DataItemLike {
+  value?: unknown;
+  text?: unknown;
+  groupKey?: unknown;
+}
+
 const CONTENT_FIELD_FALLBACKS = ['周', '月', '季度', '半年', '周报摘要', 'summary', 'analysis', 'content', 'text'];
 const CONTENT_TYPE_FIELD_FALLBACKS = ['内容', '标题', '类型', '分类', 'contentType', 'type', 'category'];
 const TITLE_FIELD_FALLBACKS = ['标题', 'title'];
@@ -254,6 +260,97 @@ function normalizeRows(data: unknown): UnknownRecord[] {
   return [record];
 }
 
+function isDataItem(value: unknown): value is DataItemLike {
+  return Boolean(value && typeof value === 'object' && ('value' in value || 'text' in value || 'groupKey' in value));
+}
+
+function cellDisplayText(value: unknown): string | undefined {
+  if (isDataItem(value)) {
+    return cellToString(value.text) || cellToString(value.value) || cellToString(value.groupKey);
+  }
+  return cellToString(value);
+}
+
+function isPositiveDataCell(value: unknown): boolean {
+  if (!isDataItem(value)) return true;
+  const rawValue = value.value;
+  if (typeof rawValue === 'number') return rawValue > 0;
+  const text = cellDisplayText(value);
+  if (!text) return false;
+  const numeric = Number(text);
+  return Number.isFinite(numeric) ? numeric > 0 : true;
+}
+
+function uniqueTexts(texts: string[]): string[] {
+  const seen = new Set<string>();
+  return texts.filter((text) => {
+    const normalized = normalizeComparableText(text);
+    if (!normalized || seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
+}
+
+function normalizeDataMatrix(data: unknown): DataItemLike[][] {
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter((row): row is unknown[] => Array.isArray(row))
+    .map((row) => row.filter(isDataItem));
+}
+
+function readDashboardMatrixPayload(rawData: unknown, config: PluginConfig): SummaryPayload | undefined {
+  const matrix = normalizeDataMatrix(rawData);
+  if (matrix.length === 0) return undefined;
+
+  const headerRow = matrix[0] || [];
+  const bodyRows = matrix.slice(1);
+  const expectedContent = normalizeComparableText(config.contentTypeValue);
+  const period = config.defaultPeriod || config.periodFields?.[0]?.value;
+  const periodOptions = config.periodFields?.map(({ label, value }) => ({ label, value }));
+
+  if (headerRow.length > 1 && bodyRows.length > 0) {
+    const matchedRows = expectedContent
+      ? bodyRows.filter((row) => normalizeComparableText(cellDisplayText(row[0])).includes(expectedContent))
+      : bodyRows;
+
+    const summaries = uniqueTexts(
+      matchedRows.flatMap((row) =>
+        headerRow.slice(1).map((header, index) => {
+          const metric = row[index + 1];
+          if (!isPositiveDataCell(metric)) return '';
+          return cellDisplayText(header) || '';
+        }),
+      ),
+    );
+
+    if (summaries.length > 0) {
+      return {
+        summary: summaries.join('\n\n---\n\n'),
+        summaries: period ? { [period]: summaries.join('\n\n---\n\n') } : undefined,
+        period,
+        periodOptions,
+      };
+    }
+  }
+
+  const rowSummaries = uniqueTexts(
+    bodyRows
+      .filter((row) => !expectedContent || normalizeComparableText(cellDisplayText(row[0])).includes(expectedContent))
+      .map((row) => cellDisplayText(row[0]) || ''),
+  );
+
+  if (rowSummaries.length > 0) {
+    return {
+      summary: rowSummaries.join('\n\n---\n\n'),
+      summaries: period ? { [period]: rowSummaries.join('\n\n---\n\n') } : undefined,
+      period,
+      periodOptions,
+    };
+  }
+
+  return undefined;
+}
+
 function isValidTableId(tableId: unknown): tableId is string {
   return typeof tableId === 'string' && /^tbl[A-Za-z0-9]/.test(tableId);
 }
@@ -377,14 +474,29 @@ async function readBaseTablePayload(config: PluginConfig): Promise<SummaryPayloa
 
 async function resolveDataConditions(config: PluginConfig): Promise<UnknownRecord[]> {
   const savedConditions = normalizeDataConditions(config.dataConditions);
-  if (savedConditions.length > 0) return savedConditions;
+  const savedCondition = savedConditions[0];
 
-  const tableId = isValidTableId(config.tableId) ? config.tableId : await getDefaultTableId();
+  const tableId = isValidTableId(config.tableId)
+    ? config.tableId
+    : isValidTableId(savedCondition?.tableId)
+      ? String(savedCondition?.tableId)
+      : await getDefaultTableId();
   if (!tableId) return [];
+
+  const periodField = config.periodFields?.find((field) => field.value === config.defaultPeriod)
+    || config.periodFields?.[0];
+  const groupFieldIds = [
+    config.contentTypeFieldId,
+    periodField?.fieldId || config.contentFieldId,
+  ].filter((fieldId, index, fields): fieldId is string =>
+    Boolean(fieldId && fields.indexOf(fieldId) === index),
+  );
 
   return [
     {
       tableId,
+      dataRange: savedCondition?.dataRange,
+      groups: groupFieldIds.map((fieldId) => ({ fieldId })),
       series: 'COUNTA',
     },
   ];
@@ -411,6 +523,29 @@ export async function readSdkData(
     }
   }
 
+  const shouldPreview = actualState === DashboardState.Create || actualState === DashboardState.Config;
+  const dataConditions = await resolveDataConditions(config);
+  const hasDataConditions = dataConditions.length > 0;
+  let rawData: unknown;
+  try {
+    rawData =
+      shouldPreview && sdk.getPreviewData && hasDataConditions
+        ? await withTimeout(sdk.getPreviewData(dataConditions))
+        : !shouldPreview && sdk.getData
+          ? await withTimeout(sdk.getData())
+          : undefined;
+  } catch {
+    rawData = undefined;
+  }
+
+  const dashboardPayload = readDashboardMatrixPayload(rawData, config);
+  if (dashboardPayload?.summary) {
+    return {
+      config,
+      payload: dashboardPayload,
+    };
+  }
+
   const basePayload = await readBaseTablePayload(config).catch(() => undefined);
   if (basePayload?.summary) {
     return {
@@ -419,21 +554,6 @@ export async function readSdkData(
     };
   }
 
-  const shouldPreview = actualState === DashboardState.Create || actualState === DashboardState.Config;
-  const hasDataConditions = Array.isArray(config.dataConditions)
-    ? config.dataConditions.length > 0
-    : Boolean(config.dataConditions);
-  let rawData: unknown;
-  try {
-    rawData =
-      shouldPreview && sdk.getPreviewData && hasDataConditions
-        ? await withTimeout(sdk.getPreviewData(config.dataConditions))
-        : !shouldPreview && sdk.getData
-          ? await withTimeout(sdk.getData())
-          : undefined;
-  } catch {
-    rawData = undefined;
-  }
   const rows = normalizeRows(rawData);
   const latest = rows[0];
 
