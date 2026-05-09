@@ -291,6 +291,17 @@ function uniqueTexts(texts: string[]): string[] {
   });
 }
 
+function isLikelyAnalysisText(text?: string): text is string {
+  if (!text) return false;
+  const normalized = normalizeComparableText(text);
+  if (!normalized) return false;
+  if (normalized === 'bitable_dashboard_count') return false;
+  if (['count', 'counter', '计数', '记录数'].includes(normalized)) return false;
+  if (/^bitable_.*count$/.test(normalized)) return false;
+  if (/^\d+(\.\d+)?$/.test(normalized)) return false;
+  return text.trim().length >= 6;
+}
+
 function normalizeDataMatrix(data: unknown): DataItemLike[][] {
   if (!Array.isArray(data)) return [];
   return data
@@ -318,7 +329,8 @@ function readDashboardMatrixPayload(rawData: unknown, config: PluginConfig): Sum
         headerRow.slice(1).map((header, index) => {
           const metric = row[index + 1];
           if (!isPositiveDataCell(metric)) return '';
-          return cellDisplayText(header) || '';
+          const text = cellDisplayText(header);
+          return isLikelyAnalysisText(text) ? text : '';
         }),
       ),
     );
@@ -336,7 +348,10 @@ function readDashboardMatrixPayload(rawData: unknown, config: PluginConfig): Sum
   const rowSummaries = uniqueTexts(
     bodyRows
       .filter((row) => !expectedContent || normalizeComparableText(cellDisplayText(row[0])).includes(expectedContent))
-      .map((row) => cellDisplayText(row[0]) || ''),
+      .map((row) => {
+        const text = cellDisplayText(row[0]);
+        return isLikelyAnalysisText(text) ? text : '';
+      }),
   );
 
   if (rowSummaries.length > 0) {
