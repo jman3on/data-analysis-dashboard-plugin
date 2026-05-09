@@ -133,6 +133,7 @@ export default function App(props: AppProps) {
       const saved = await saveDashboardConfig(config);
       if (saved) {
         Toast.success('配置已保存');
+        await refresh();
       } else {
         Toast.info('本地预览已更新，飞书内会保存配置');
       }

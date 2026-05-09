@@ -20,6 +20,16 @@ export interface PluginConfig {
   dataConditions?: unknown;
 }
 
+export interface DataTableOption {
+  label: string;
+  value: string;
+}
+
+export interface DataFieldOption {
+  label: string;
+  value: string;
+}
+
 export interface SummaryPayload {
   title?: string;
   summary?: string;

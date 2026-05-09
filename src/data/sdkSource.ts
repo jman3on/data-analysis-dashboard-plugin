@@ -1,5 +1,5 @@
 import { DEFAULT_CONFIG } from '../constants';
-import { DashboardState, PluginConfig, SummaryPayload } from '../types';
+import { DashboardState, DataFieldOption, DataTableOption, PluginConfig, SummaryPayload } from '../types';
 import { base as officialBase, dashboard as officialDashboard } from '@lark-base-open/js-sdk';
 
 type UnknownRecord = Record<string, unknown>;
@@ -20,7 +20,26 @@ interface RuntimeSdk {
 interface TableLike {
   id?: string;
   getMeta?: () => Promise<{ id?: string; name?: string }> | { id?: string; name?: string };
+  getName?: () => Promise<string> | string;
+  getFieldMetaList?: () => Promise<FieldMetaLike[]> | FieldMetaLike[];
+  getRecords?: (params?: { pageSize?: number }) => Promise<{ records?: RecordLike[] }> | { records?: RecordLike[] };
 }
+
+interface FieldMetaLike {
+  id?: string;
+  name?: string;
+  fieldId?: string;
+  fieldName?: string;
+}
+
+interface RecordLike {
+  fields?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+const CONTENT_FIELD_FALLBACKS = ['周报摘要', 'summary', 'analysis', 'content', 'text'];
+const TITLE_FIELD_FALLBACKS = ['标题', 'title'];
+const UPDATED_AT_FIELD_FALLBACKS = ['最后更新时间', '消息创建时间', 'updatedAt', 'updated_at'];
 
 function withTimeout<T>(task: Promise<T> | T, timeoutMs = 2500): Promise<T> {
   return Promise.race([
@@ -88,6 +107,76 @@ function pickString(record: UnknownRecord, keys: string[]): string | undefined {
   return undefined;
 }
 
+function readFieldId(field: FieldMetaLike): string | undefined {
+  return field.id || field.fieldId;
+}
+
+function readFieldName(field: FieldMetaLike): string | undefined {
+  return field.name || field.fieldName;
+}
+
+async function readTableName(table: TableLike, fallback: string): Promise<string> {
+  try {
+    const meta = await withTimeout(table.getMeta?.());
+    if (meta?.name) return meta.name;
+  } catch {
+    // Continue with getName/id fallback.
+  }
+
+  try {
+    const name = await withTimeout(table.getName?.());
+    if (name) return name;
+  } catch {
+    // Continue with id fallback.
+  }
+
+  return fallback;
+}
+
+function cellToString(value: unknown): string | undefined {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value === 'string') return value.trim() || undefined;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value instanceof Date) return value.toISOString();
+
+  if (Array.isArray(value)) {
+    const text = value
+      .map((item) => cellToString(item))
+      .filter(Boolean)
+      .join('');
+    return text.trim() || undefined;
+  }
+
+  if (typeof value === 'object') {
+    const record = value as UnknownRecord;
+    return (
+      cellToString(record.text) ||
+      cellToString(record.name) ||
+      cellToString(record.value) ||
+      cellToString(record.link) ||
+      cellToString(record.url)
+    );
+  }
+
+  return undefined;
+}
+
+function pickCellString(fields: UnknownRecord, fieldMetas: FieldMetaLike[], keys: string[]): string | undefined {
+  for (const key of keys.filter(Boolean)) {
+    const byRawKey = cellToString(fields[key]);
+    if (byRawKey) return byRawKey;
+
+    const matchedField = fieldMetas.find((field) => readFieldId(field) === key || readFieldName(field) === key);
+    const fieldId = matchedField ? readFieldId(matchedField) : undefined;
+    if (fieldId) {
+      const byFieldId = cellToString(fields[fieldId]);
+      if (byFieldId) return byFieldId;
+    }
+  }
+
+  return undefined;
+}
+
 function normalizeRows(data: unknown): UnknownRecord[] {
   if (Array.isArray(data)) return data.filter((item): item is UnknownRecord => Boolean(item && typeof item === 'object'));
   if (!data || typeof data !== 'object') return [];
@@ -130,6 +219,83 @@ async function getDefaultTableId(): Promise<string | undefined> {
   return undefined;
 }
 
+export async function loadDataTables(): Promise<DataTableOption[]> {
+  try {
+    const tableList = (await withTimeout(officialBase.getTableList?.())) as TableLike[] | undefined;
+    if (!tableList?.length) return [];
+
+    const options = await Promise.all(
+      tableList.map(async (table) => {
+        const meta = await withTimeout(table.getMeta?.()).catch(() => undefined);
+        const value = isValidTableId(table.id) ? table.id : isValidTableId(meta?.id) ? meta?.id : undefined;
+        if (!value) return undefined;
+
+        return {
+          label: await readTableName(table, meta?.name || value),
+          value,
+        };
+      }),
+    );
+
+    return options.filter((option): option is DataTableOption => Boolean(option));
+  } catch {
+    return [];
+  }
+}
+
+async function getTableByConfig(config: PluginConfig): Promise<TableLike | undefined> {
+  const tableId = isValidTableId(config.tableId) ? config.tableId : await getDefaultTableId();
+  if (!tableId) return undefined;
+
+  try {
+    return (await withTimeout(officialBase.getTableById?.(tableId))) as TableLike | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function loadDataFields(tableId?: string): Promise<DataFieldOption[]> {
+  if (!isValidTableId(tableId)) return [];
+
+  try {
+    const table = (await withTimeout(officialBase.getTableById?.(tableId))) as TableLike | undefined;
+    const fields = (await withTimeout(table?.getFieldMetaList?.())) as FieldMetaLike[] | undefined;
+    return (fields || [])
+      .map((field) => {
+        const value = readFieldId(field);
+        const label = readFieldName(field) || value;
+        return value && label ? { label, value } : undefined;
+      })
+      .filter((option): option is DataFieldOption => Boolean(option));
+  } catch {
+    return [];
+  }
+}
+
+async function readBaseTablePayload(config: PluginConfig): Promise<SummaryPayload | undefined> {
+  const table = await getTableByConfig(config);
+  if (!table?.getFieldMetaList || !table.getRecords) return undefined;
+
+  const fieldMetas = ((await withTimeout(table.getFieldMetaList())) || []) as FieldMetaLike[];
+  const response = await withTimeout(table.getRecords({ pageSize: 50 }));
+  const records = response?.records || [];
+  const contentKeys = [config.contentFieldId || '', ...CONTENT_FIELD_FALLBACKS];
+
+  for (const record of records) {
+    const fields = (record.fields && typeof record.fields === 'object' ? record.fields : record) as UnknownRecord;
+    const summary = pickCellString(fields, fieldMetas, contentKeys);
+    if (!summary) continue;
+
+    return {
+      title: pickCellString(fields, fieldMetas, TITLE_FIELD_FALLBACKS),
+      summary,
+      updatedAt: pickCellString(fields, fieldMetas, UPDATED_AT_FIELD_FALLBACKS),
+    };
+  }
+
+  return undefined;
+}
+
 async function resolveDataConditions(config: PluginConfig): Promise<UnknownRecord[]> {
   const savedConditions = normalizeDataConditions(config.dataConditions);
   if (savedConditions.length > 0) return savedConditions;
@@ -165,6 +331,15 @@ export async function readSdkData(
       config = { state: actualState };
     }
   }
+
+  const basePayload = await readBaseTablePayload(config).catch(() => undefined);
+  if (basePayload?.summary) {
+    return {
+      config,
+      payload: basePayload,
+    };
+  }
+
   const shouldPreview = actualState === DashboardState.Create || actualState === DashboardState.Config;
   const hasDataConditions = Array.isArray(config.dataConditions)
     ? config.dataConditions.length > 0
@@ -190,9 +365,8 @@ export async function readSdkData(
     };
   }
 
-  const contentFieldId = config.contentFieldId || DEFAULT_CONFIG.contentFieldId;
   const summary = pickString(latest, [
-    contentFieldId,
+    config.contentFieldId || DEFAULT_CONFIG.contentFieldId,
     '周报摘要',
     'summary',
     'analysis',

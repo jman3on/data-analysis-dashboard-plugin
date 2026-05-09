@@ -1,8 +1,8 @@
 import { DashboardState, PeriodKey, PluginConfig } from './types';
 
 export const DEFAULT_CONFIG: Required<PluginConfig> = {
-  tableId: 'SPSTbnjWeaIbo3smY2UcAdVZnab',
-  contentFieldId: 'fld_summary',
+  tableId: '',
+  contentFieldId: '',
   title: '数据分析',
   showUpdatedAt: true,
   defaultPeriod: 'week',

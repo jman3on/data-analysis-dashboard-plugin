@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Button, Input, Select, Typography } from '@douyinfe/semi-ui';
 import { APPEARANCE_OPTIONS, COLOR_OPTIONS, PERIOD_OPTIONS } from '../constants';
-import { AppearanceMode, PeriodKey, PluginConfig } from '../types';
+import { loadDataFields, loadDataTables } from '../data/sdkSource';
+import { AppearanceMode, DataFieldOption, DataTableOption, PeriodKey, PluginConfig } from '../types';
 
 interface ConfigPanelProps {
   config: Required<PluginConfig>;
@@ -10,12 +12,35 @@ interface ConfigPanelProps {
 }
 
 export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelProps) {
+  const [tableOptions, setTableOptions] = useState<DataTableOption[]>([]);
+  const [fieldOptions, setFieldOptions] = useState<DataFieldOption[]>([]);
+
   const update = (patch: Partial<Required<PluginConfig>>) => {
     onChange({
       ...config,
       ...patch,
     });
   };
+
+  useEffect(() => {
+    let disposed = false;
+    loadDataTables().then((options) => {
+      if (!disposed) setTableOptions(options);
+    });
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    loadDataFields(config.tableId).then((options) => {
+      if (!disposed) setFieldOptions(options);
+    });
+    return () => {
+      disposed = true;
+    };
+  }, [config.tableId]);
 
   return (
     <aside className="config-panel">
@@ -30,12 +55,49 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
         </div>
 
         <div className="config-field">
+          <Typography.Text strong>数据表</Typography.Text>
+          <Typography.Text type="secondary" className="config-help">
+            选择存放分析结论的多维表格数据表。
+          </Typography.Text>
+          <Select
+            value={config.tableId || undefined}
+            optionList={tableOptions}
+            placeholder={tableOptions.length ? '请选择数据表' : '未读取到数据表'}
+            onChange={(value) => update({ tableId: String(value || ''), contentFieldId: '' })}
+          />
+        </div>
+
+        <div className="config-field">
           <Typography.Text strong>默认时间维度</Typography.Text>
           <Select
             value={config.defaultPeriod}
             optionList={PERIOD_OPTIONS}
             onChange={(value) => update({ defaultPeriod: value as PeriodKey, })}
           />
+        </div>
+
+        <div className="config-field">
+          <Typography.Text strong>内容字段</Typography.Text>
+          <Typography.Text type="secondary" className="config-help">
+            选择或填写包含分析结论的字段名/字段 ID。
+          </Typography.Text>
+          {fieldOptions.length > 0 ? (
+            <Select
+              value={config.contentFieldId || undefined}
+              optionList={fieldOptions}
+              placeholder="自动匹配：周报摘要 / summary / analysis..."
+              onChange={(value) => update({ contentFieldId: String(value || '') })}
+            />
+          ) : (
+            <Input
+              value={config.contentFieldId || ''}
+              placeholder="例如：周报摘要 或 fldxxx"
+              onChange={(value) => update({ contentFieldId: value })}
+            />
+          )}
+          <Typography.Text type="secondary" className="config-help compact">
+            留空则按顺序自动匹配：周报摘要 → summary → analysis → content → text
+          </Typography.Text>
         </div>
 
         <label className="config-check">
