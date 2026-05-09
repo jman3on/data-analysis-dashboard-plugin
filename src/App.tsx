@@ -53,6 +53,11 @@ export default function App(props: AppProps) {
   };
 
   const config = draftConfig || data?.config || DEFAULT_CONFIG;
+  const periodOptions = data?.payload.periodOptions?.length
+    ? data.payload.periodOptions
+    : config.periodFields.length
+      ? config.periodFields.map(({ label, value }) => ({ label, value }))
+      : PERIOD_OPTIONS;
   const summary = useMemo(() => (data ? resolveSummary(data.payload, period) : ''), [data, period]);
   const updatedAt = useMemo(() => (data ? resolveUpdatedAt(data.payload, period) : undefined), [data, period]);
   const state = config.state || DashboardState.View;
@@ -173,7 +178,7 @@ export default function App(props: AppProps) {
           <div className="toolbar">
             <Select
               value={period}
-              optionList={PERIOD_OPTIONS}
+              optionList={periodOptions}
               size="small"
               className="period-select"
               onChange={(value) => setPeriod(value as PeriodKey)}

@@ -15,6 +15,9 @@ function mergeConfig(...configs: Array<PluginConfig | undefined>): Required<Plug
     return {
       tableId: config.tableId ?? merged.tableId,
       contentFieldId: config.contentFieldId ?? merged.contentFieldId,
+      contentTypeFieldId: config.contentTypeFieldId ?? merged.contentTypeFieldId,
+      contentTypeValue: config.contentTypeValue ?? merged.contentTypeValue,
+      periodFields: config.periodFields ?? merged.periodFields,
       title: config.title ?? merged.title,
       showUpdatedAt: config.showUpdatedAt ?? merged.showUpdatedAt,
       defaultPeriod: config.defaultPeriod ?? merged.defaultPeriod,

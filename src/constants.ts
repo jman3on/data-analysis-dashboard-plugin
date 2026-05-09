@@ -3,6 +3,9 @@ import { DashboardState, PeriodKey, PluginConfig } from './types';
 export const DEFAULT_CONFIG: Required<PluginConfig> = {
   tableId: '',
   contentFieldId: '',
+  contentTypeFieldId: '',
+  contentTypeValue: '',
+  periodFields: [],
   title: '数据分析',
   showUpdatedAt: true,
   defaultPeriod: 'week',

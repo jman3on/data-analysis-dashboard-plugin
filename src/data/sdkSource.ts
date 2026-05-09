@@ -1,5 +1,12 @@
 import { DEFAULT_CONFIG } from '../constants';
-import { DashboardState, DataFieldOption, DataTableOption, PluginConfig, SummaryPayload } from '../types';
+import {
+  DashboardState,
+  DataFieldOption,
+  DataTableOption,
+  PeriodFieldConfig,
+  PluginConfig,
+  SummaryPayload,
+} from '../types';
 import { base as officialBase, dashboard as officialDashboard } from '@lark-base-open/js-sdk';
 
 type UnknownRecord = Record<string, unknown>;
@@ -37,9 +44,17 @@ interface RecordLike {
   [key: string]: unknown;
 }
 
-const CONTENT_FIELD_FALLBACKS = ['周报摘要', 'summary', 'analysis', 'content', 'text'];
+const CONTENT_FIELD_FALLBACKS = ['周', '月', '季度', '半年', '周报摘要', 'summary', 'analysis', 'content', 'text'];
+const CONTENT_TYPE_FIELD_FALLBACKS = ['内容', '标题', '类型', '分类', 'contentType', 'type', 'category'];
 const TITLE_FIELD_FALLBACKS = ['标题', 'title'];
 const UPDATED_AT_FIELD_FALLBACKS = ['最后更新时间', '消息创建时间', 'updatedAt', 'updated_at'];
+const PERIOD_FIELD_CANDIDATES: Array<{ label: string; value: string; names: string[] }> = [
+  { label: '周', value: 'week', names: ['周', '周报', '本周'] },
+  { label: '月', value: 'month', names: ['月', '月报', '本月'] },
+  { label: '季度', value: 'quarter', names: ['季度', '季报', '本季度'] },
+  { label: '半年', value: 'half', names: ['半年', '半年度'] },
+  { label: '年', value: 'year', names: ['年', '年度', '全年'] },
+];
 
 function withTimeout<T>(task: Promise<T> | T, timeoutMs = 2500): Promise<T> {
   return Promise.race([
@@ -177,6 +192,59 @@ function pickCellString(fields: UnknownRecord, fieldMetas: FieldMetaLike[], keys
   return undefined;
 }
 
+function normalizeComparableText(value?: string): string {
+  return (value || '').replace(/\s+/g, '').toLowerCase();
+}
+
+function fieldMatchesAnyName(field: FieldMetaLike, names: string[]): boolean {
+  const fieldName = normalizeComparableText(readFieldName(field));
+  return names.some((name) => fieldName === normalizeComparableText(name));
+}
+
+function inferPeriodFields(fieldMetas: FieldMetaLike[], config: PluginConfig): PeriodFieldConfig[] {
+  if (config.periodFields?.length) return config.periodFields;
+
+  const inferred = PERIOD_FIELD_CANDIDATES
+    .map((candidate) => {
+      const field = fieldMetas.find((item) => fieldMatchesAnyName(item, candidate.names));
+      const fieldId = field ? readFieldId(field) : undefined;
+      if (!fieldId) return undefined;
+      return {
+        label: candidate.label,
+        value: candidate.value,
+        fieldId,
+      };
+    })
+    .filter((field): field is PeriodFieldConfig => Boolean(field));
+
+  if (inferred.length) return inferred;
+
+  return CONTENT_FIELD_FALLBACKS
+    .map((key) => {
+      const field = fieldMetas.find((item) => readFieldId(item) === key || fieldMatchesAnyName(item, [key]));
+      const fieldId = field ? readFieldId(field) : undefined;
+      const label = field ? readFieldName(field) : undefined;
+      if (!fieldId || !label) return undefined;
+      return {
+        label,
+        value: fieldId,
+        fieldId,
+      };
+    })
+    .filter((field): field is PeriodFieldConfig => Boolean(field));
+}
+
+function recordMatchesContentType(fields: UnknownRecord, fieldMetas: FieldMetaLike[], config: PluginConfig): boolean {
+  const expected = normalizeComparableText(config.contentTypeValue);
+  if (!expected) return true;
+
+  const contentType = pickCellString(fields, fieldMetas, [
+    config.contentTypeFieldId || '',
+    ...CONTENT_TYPE_FIELD_FALLBACKS,
+  ]);
+  return normalizeComparableText(contentType).includes(expected);
+}
+
 function normalizeRows(data: unknown): UnknownRecord[] {
   if (Array.isArray(data)) return data.filter((item): item is UnknownRecord => Boolean(item && typeof item === 'object'));
   if (!data || typeof data !== 'object') return [];
@@ -261,10 +329,10 @@ export async function loadDataFields(tableId?: string): Promise<DataFieldOption[
     const table = (await withTimeout(officialBase.getTableById?.(tableId))) as TableLike | undefined;
     const fields = (await withTimeout(table?.getFieldMetaList?.())) as FieldMetaLike[] | undefined;
     return (fields || [])
-      .map((field) => {
+      .map<DataFieldOption | undefined>((field) => {
         const value = readFieldId(field);
         const label = readFieldName(field) || value;
-        return value && label ? { label, value } : undefined;
+        return value && label ? { label, value, fieldName: label } : undefined;
       })
       .filter((option): option is DataFieldOption => Boolean(option));
   } catch {
@@ -279,16 +347,27 @@ async function readBaseTablePayload(config: PluginConfig): Promise<SummaryPayloa
   const fieldMetas = ((await withTimeout(table.getFieldMetaList())) || []) as FieldMetaLike[];
   const response = await withTimeout(table.getRecords({ pageSize: 50 }));
   const records = response?.records || [];
-  const contentKeys = [config.contentFieldId || '', ...CONTENT_FIELD_FALLBACKS];
+  const periodFields = inferPeriodFields(fieldMetas, config);
+  const contentKeys = [config.contentFieldId || '', ...periodFields.map((field) => field.fieldId), ...CONTENT_FIELD_FALLBACKS];
 
   for (const record of records) {
     const fields = (record.fields && typeof record.fields === 'object' ? record.fields : record) as UnknownRecord;
-    const summary = pickCellString(fields, fieldMetas, contentKeys);
+    if (!recordMatchesContentType(fields, fieldMetas, config)) continue;
+
+    const summaries = periodFields.reduce<NonNullable<SummaryPayload['summaries']>>((result, periodField) => {
+      const text = pickCellString(fields, fieldMetas, [periodField.fieldId]);
+      if (text) result[periodField.value] = text;
+      return result;
+    }, {});
+    const summary = summaries[config.defaultPeriod || ''] || pickCellString(fields, fieldMetas, contentKeys);
     if (!summary) continue;
 
     return {
       title: pickCellString(fields, fieldMetas, TITLE_FIELD_FALLBACKS),
       summary,
+      summaries,
+      period: config.defaultPeriod || periodFields[0]?.value,
+      periodOptions: periodFields.map(({ label, value }) => ({ label, value })),
       updatedAt: pickCellString(fields, fieldMetas, UPDATED_AT_FIELD_FALLBACKS),
     };
   }
@@ -408,6 +487,9 @@ export async function saveDashboardConfig(config: PluginConfig): Promise<boolean
       customConfig: {
         tableId: dataConditions[0]?.tableId || config.tableId,
         contentFieldId: config.contentFieldId,
+        contentTypeFieldId: config.contentTypeFieldId,
+        contentTypeValue: config.contentTypeValue,
+        periodFields: config.periodFields,
         title: config.title,
         showUpdatedAt: config.showUpdatedAt,
         defaultPeriod: config.defaultPeriod,

@@ -1,6 +1,7 @@
+import { PERIOD_OPTIONS } from './constants';
 import { PeriodKey, SummaryPayload } from './types';
 
-const PERIOD_KEYS: PeriodKey[] = ['week', 'month', 'quarter', 'half'];
+const PERIOD_KEYS = PERIOD_OPTIONS.map((option) => option.value);
 
 export function normalizePayload(input?: SummaryPayload | string | null): SummaryPayload {
   if (!input) return {};
@@ -18,8 +19,9 @@ export function parseBoolean(value: string | null): boolean | undefined {
 }
 
 export function parsePeriod(value: string | null): PeriodKey | undefined {
-  if (value && PERIOD_KEYS.includes(value as PeriodKey)) return value as PeriodKey;
-  return undefined;
+  if (!value) return undefined;
+  if (PERIOD_KEYS.includes(value as PeriodKey)) return value as PeriodKey;
+  return value;
 }
 
 export function parseJsonParam<T>(value: string | null): T | undefined {

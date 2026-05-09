@@ -5,12 +5,21 @@ export enum DashboardState {
   FullScreen = 'FullScreen',
 }
 
-export type PeriodKey = 'week' | 'month' | 'quarter' | 'half';
+export type PeriodKey = string;
 export type AppearanceMode = 'auto' | 'light' | 'dark';
+
+export interface PeriodFieldConfig {
+  label: string;
+  value: PeriodKey;
+  fieldId: string;
+}
 
 export interface PluginConfig {
   tableId?: string;
   contentFieldId?: string;
+  contentTypeFieldId?: string;
+  contentTypeValue?: string;
+  periodFields?: PeriodFieldConfig[];
   title?: string;
   showUpdatedAt?: boolean;
   defaultPeriod?: PeriodKey;
@@ -28,6 +37,7 @@ export interface DataTableOption {
 export interface DataFieldOption {
   label: string;
   value: string;
+  fieldName?: string;
 }
 
 export interface SummaryPayload {
@@ -37,6 +47,7 @@ export interface SummaryPayload {
   period?: PeriodKey;
   summaries?: Partial<Record<PeriodKey, string>>;
   updatedAtByPeriod?: Partial<Record<PeriodKey, string>>;
+  periodOptions?: Array<{ label: string; value: PeriodKey }>;
 }
 
 export interface AppProps {
