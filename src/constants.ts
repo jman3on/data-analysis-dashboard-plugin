@@ -7,6 +7,7 @@ export const DEFAULT_CONFIG: Required<PluginConfig> = {
   showUpdatedAt: true,
   defaultPeriod: 'week',
   accentColor: '#3370ff',
+  appearanceMode: 'auto',
   state: DashboardState.View,
   dataConditions: undefined,
 };
@@ -27,6 +28,12 @@ export const COLOR_OPTIONS = [
   '#FAB005',
   '#FD7E14',
   '#F06565',
+];
+
+export const APPEARANCE_OPTIONS = [
+  { label: '跟随仪表盘', value: 'auto' },
+  { label: '浅色', value: 'light' },
+  { label: '深色', value: 'dark' },
 ];
 
 export const DEMO_SUMMARIES: Record<PeriodKey, string> = {

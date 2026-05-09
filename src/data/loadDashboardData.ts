@@ -19,6 +19,7 @@ function mergeConfig(...configs: Array<PluginConfig | undefined>): Required<Plug
       showUpdatedAt: config.showUpdatedAt ?? merged.showUpdatedAt,
       defaultPeriod: config.defaultPeriod ?? merged.defaultPeriod,
       accentColor: config.accentColor ?? merged.accentColor,
+      appearanceMode: config.appearanceMode ?? merged.appearanceMode,
       state: config.state ?? merged.state,
       dataConditions: config.dataConditions ?? merged.dataConditions,
     };

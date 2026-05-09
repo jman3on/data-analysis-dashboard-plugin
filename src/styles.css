@@ -3,22 +3,24 @@
 :root {
   color-scheme: light;
   --surface: #ffffff;
-  --surface-muted: #f7f8fa;
-  --border: #e5e6eb;
+  --surface-muted: rgba(247, 248, 250, 0.86);
+  --border: rgba(31, 35, 41, 0.1);
   --text: #1f2329;
   --text-muted: #646a73;
   --accent: #3370ff;
-  --shadow: 0 8px 28px rgba(31, 35, 41, 0.08);
+  --tag-bg: rgba(250, 173, 20, 0.14);
+  --shadow: none;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --surface: #1f2329;
-  --surface-muted: #2b2f36;
-  --border: #3d4149;
+  --surface: #20242b;
+  --surface-muted: #2b3038;
+  --border: rgba(255, 255, 255, 0.1);
   --text: #f5f6f7;
   --text-muted: #b8bec7;
   --accent: #82a7ff;
+  --tag-bg: rgba(250, 173, 20, 0.22);
   --shadow: 0 10px 32px rgba(0, 0, 0, 0.28);
 }
 
@@ -37,7 +39,7 @@ body,
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
-  background: var(--surface-muted);
+  background: transparent;
   color: var(--text);
 }
 
@@ -47,7 +49,7 @@ body {
   display: grid;
   gap: 12px;
   align-content: start;
-  background: var(--surface-muted);
+  background: transparent;
 }
 
 .dashboard-shell.config-mode {
@@ -91,7 +93,7 @@ body {
 
 .panel-header,
 .panel-footer {
-  padding: 14px 16px;
+  padding: 10px 12px;
   border-color: var(--border);
 }
 
@@ -110,12 +112,25 @@ body {
 .title-block {
   min-width: 0;
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .title-block .semi-typography {
   margin: 0;
   color: var(--text);
+}
+
+.state-view .title-block .semi-typography,
+.state-fullscreen .title-block .semi-typography {
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.state-view .meta-row .semi-tag,
+.state-fullscreen .meta-row .semi-tag {
+  height: 20px;
+  line-height: 18px;
+  font-size: 11px;
 }
 
 .meta-row,
@@ -130,20 +145,21 @@ body {
 }
 
 .period-select {
-  width: 88px;
+  width: 78px;
 }
 
 .summary-content {
   min-width: 0;
   overflow: auto;
-  padding: 18px 18px 22px;
+  padding: 12px 14px 14px;
 }
 
 .markdown-text {
-  max-width: 920px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   color: var(--text);
-  line-height: 1.72;
+  font-size: 13px;
+  line-height: 1.55;
   word-break: break-word;
 }
 
@@ -157,33 +173,33 @@ body {
 
 .markdown-text h1,
 .markdown-text h2 {
-  margin-top: 4px;
-  margin-bottom: 16px;
-  font-size: 22px;
-  line-height: 1.35;
+  margin-top: 2px;
+  margin-bottom: 10px;
+  font-size: 16px;
+  line-height: 1.32;
   font-weight: 700;
 }
 
 .markdown-text h3 {
-  margin-top: 18px;
-  margin-bottom: 8px;
-  font-size: 16px;
-  line-height: 1.45;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 1.4;
   font-weight: 650;
   color: var(--accent);
 }
 
 .markdown-text p {
-  margin: 8px 0;
+  margin: 5px 0;
 }
 
 .markdown-text ul {
-  padding-left: 20px;
-  margin: 8px 0 12px;
+  padding-left: 18px;
+  margin: 5px 0 8px;
 }
 
 .markdown-text li {
-  margin: 5px 0;
+  margin: 3px 0;
 }
 
 .markdown-text strong {
@@ -214,6 +230,35 @@ body {
   grid-template-rows: 1fr 70px;
   border-left: 1px solid var(--border);
   background: var(--surface);
+}
+
+.config-mode .panel-header,
+.config-mode .panel-footer {
+  padding: 16px 20px;
+}
+
+.config-mode .summary-content {
+  padding: 24px 28px;
+}
+
+.config-mode .markdown-text {
+  max-width: 780px;
+  margin: 0 auto;
+  font-size: 16px;
+  line-height: 1.72;
+}
+
+.config-mode .markdown-text h1,
+.config-mode .markdown-text h2 {
+  margin-top: 4px;
+  margin-bottom: 16px;
+  font-size: 22px;
+}
+
+.config-mode .markdown-text h3 {
+  margin-top: 18px;
+  margin-bottom: 8px;
+  font-size: 16px;
 }
 
 .config-panel-scroll {
@@ -290,6 +335,14 @@ body {
 :root[data-theme='dark'] .semi-select,
 :root[data-theme='dark'] .semi-select-selection,
 :root[data-theme='dark'] .semi-input-wrapper {
+  background: var(--surface-muted);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+:root[data-theme='light'] .semi-select,
+:root[data-theme='light'] .semi-select-selection,
+:root[data-theme='light'] .semi-input-wrapper {
   background: var(--surface-muted);
   border-color: var(--border);
   color: var(--text);

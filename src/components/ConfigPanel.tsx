@@ -1,6 +1,6 @@
 import { Button, Input, Select, Typography } from '@douyinfe/semi-ui';
-import { COLOR_OPTIONS, PERIOD_OPTIONS } from '../constants';
-import { PeriodKey, PluginConfig } from '../types';
+import { APPEARANCE_OPTIONS, COLOR_OPTIONS, PERIOD_OPTIONS } from '../constants';
+import { AppearanceMode, PeriodKey, PluginConfig } from '../types';
 
 interface ConfigPanelProps {
   config: Required<PluginConfig>;
@@ -48,7 +48,16 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
         </label>
 
         <div className="config-field">
-          <Typography.Text strong>颜色</Typography.Text>
+          <Typography.Text strong>外观模式</Typography.Text>
+          <Select
+            value={config.appearanceMode}
+            optionList={APPEARANCE_OPTIONS}
+            onChange={(value) => update({ appearanceMode: value as AppearanceMode })}
+          />
+        </div>
+
+        <div className="config-field">
+          <Typography.Text strong>强调色</Typography.Text>
           <div className="color-grid" role="radiogroup" aria-label="主题颜色">
             {COLOR_OPTIONS.map((color) => (
               <button

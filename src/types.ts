@@ -6,6 +6,7 @@ export enum DashboardState {
 }
 
 export type PeriodKey = 'week' | 'month' | 'quarter' | 'half';
+export type AppearanceMode = 'auto' | 'light' | 'dark';
 
 export interface PluginConfig {
   tableId?: string;
@@ -14,6 +15,7 @@ export interface PluginConfig {
   showUpdatedAt?: boolean;
   defaultPeriod?: PeriodKey;
   accentColor?: string;
+  appearanceMode?: AppearanceMode;
   state?: DashboardState;
   dataConditions?: unknown;
 }

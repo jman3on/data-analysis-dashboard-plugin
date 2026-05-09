@@ -22,6 +22,15 @@ interface TableLike {
   getMeta?: () => Promise<{ id?: string; name?: string }> | { id?: string; name?: string };
 }
 
+function withTimeout<T>(task: Promise<T> | T, timeoutMs = 2500): Promise<T> {
+  return Promise.race([
+    Promise.resolve(task),
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => reject(new Error('SDK request timed out')), timeoutMs);
+    }),
+  ]);
+}
+
 declare global {
   interface Window {
     BIPluginSDK?: RuntimeSdk;
@@ -100,19 +109,19 @@ function normalizeDataConditions(dataConditions: unknown): UnknownRecord[] {
 
 async function getDefaultTableId(): Promise<string | undefined> {
   try {
-    const activeTable = (await officialBase.getActiveTable?.()) as TableLike | undefined;
+    const activeTable = (await withTimeout(officialBase.getActiveTable?.())) as TableLike | undefined;
     if (isValidTableId(activeTable?.id)) return activeTable.id;
-    const activeMeta = await activeTable?.getMeta?.();
+    const activeMeta = await withTimeout(activeTable?.getMeta?.());
     if (isValidTableId(activeMeta?.id)) return activeMeta.id;
   } catch {
     // Some dashboard hosts do not expose active table; fall back to the table list.
   }
 
   try {
-    const tableList = (await officialBase.getTableList?.()) as TableLike[] | undefined;
+    const tableList = (await withTimeout(officialBase.getTableList?.())) as TableLike[] | undefined;
     const firstTable = tableList?.[0];
     if (isValidTableId(firstTable?.id)) return firstTable.id;
-    const firstMeta = await firstTable?.getMeta?.();
+    const firstMeta = await withTimeout(firstTable?.getMeta?.());
     if (isValidTableId(firstMeta?.id)) return firstMeta.id;
   } catch {
     return undefined;
@@ -150,7 +159,7 @@ export async function readSdkData(
   let config: PluginConfig = { state: actualState };
   if (canReadSavedConfig && sdk.getConfig) {
     try {
-      config = normalizeConfig(await sdk.getConfig(), actualState);
+      config = normalizeConfig(await withTimeout(sdk.getConfig()), actualState);
     } catch {
       actualState = DashboardState.Create;
       config = { state: actualState };
@@ -164,9 +173,9 @@ export async function readSdkData(
   try {
     rawData =
       shouldPreview && sdk.getPreviewData && hasDataConditions
-        ? await sdk.getPreviewData(config.dataConditions)
+        ? await withTimeout(sdk.getPreviewData(config.dataConditions))
         : !shouldPreview && sdk.getData
-          ? await sdk.getData()
+          ? await withTimeout(sdk.getData())
           : undefined;
   } catch {
     rawData = undefined;
@@ -229,6 +238,7 @@ export async function saveDashboardConfig(config: PluginConfig): Promise<boolean
         showUpdatedAt: config.showUpdatedAt,
         defaultPeriod: config.defaultPeriod,
         accentColor: config.accentColor,
+        appearanceMode: config.appearanceMode,
       },
     }),
   );

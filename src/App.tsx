@@ -1,6 +1,7 @@
 import { CSSProperties, useEffect, useMemo, useState } from 'react';
 import { Button, Select, Spin, Tag, Toast, Typography } from '@douyinfe/semi-ui';
 import { IconRefresh } from '@douyinfe/semi-icons';
+import { bridge } from '@lark-base-open/js-sdk';
 import { DEFAULT_CONFIG, PERIOD_OPTIONS } from './constants';
 import { loadDashboardData } from './data/loadDashboardData';
 import { markDashboardRendered, saveDashboardConfig, subscribeSdkChanges } from './data/sdkSource';
@@ -10,6 +11,21 @@ import { MarkdownText } from './components/MarkdownText';
 import { AppProps, DashboardData, DashboardState, PeriodKey, PluginConfig } from './types';
 import { formatDateTime, resolveSummary, resolveUpdatedAt } from './utils';
 import './styles.css';
+
+type ResolvedTheme = 'light' | 'dark';
+
+function normalizeTheme(theme: unknown): ResolvedTheme | undefined {
+  if (typeof theme !== 'string') return undefined;
+  const normalized = theme.toLowerCase();
+  if (normalized === 'light') return 'light';
+  if (normalized === 'dark') return 'dark';
+  return undefined;
+}
+
+function applyResolvedTheme(theme: ResolvedTheme) {
+  document.documentElement.dataset.theme = theme;
+  document.body.setAttribute('theme-mode', theme);
+}
 
 export default function App(props: AppProps) {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -36,18 +52,15 @@ export default function App(props: AppProps) {
     }
   };
 
+  const config = draftConfig || data?.config || DEFAULT_CONFIG;
+  const summary = useMemo(() => (data ? resolveSummary(data.payload, period) : ''), [data, period]);
+  const updatedAt = useMemo(() => (data ? resolveUpdatedAt(data.payload, period) : undefined), [data, period]);
+  const state = config.state || DashboardState.View;
+  const isSetupState = state === DashboardState.Create || state === DashboardState.Config;
+  const shellStyle = { '--accent': config.accentColor } as CSSProperties;
+
   useEffect(() => {
     refresh();
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const applyTheme = () => {
-      const urlTheme = new URLSearchParams(window.location.search).get('theme');
-      const dark = urlTheme ? urlTheme === 'dark' : mediaQuery.matches;
-      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-      document.body.setAttribute('theme-mode', dark ? 'dark' : 'light');
-    };
-
-    applyTheme();
-    mediaQuery.addEventListener('change', applyTheme);
 
     let cleanup: () => void = () => undefined;
     subscribeSdkChanges(() => refresh()).then((unsubscribe) => {
@@ -55,23 +68,59 @@ export default function App(props: AppProps) {
     });
 
     return () => {
-      mediaQuery.removeEventListener('change', applyTheme);
       cleanup();
     };
   }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const urlTheme = normalizeTheme(new URLSearchParams(window.location.search).get('theme'));
+    const forcedTheme = config.appearanceMode === 'light' || config.appearanceMode === 'dark'
+      ? config.appearanceMode
+      : undefined;
+
+    let disposed = false;
+
+    const applyFallbackTheme = () => {
+      applyResolvedTheme(urlTheme || (mediaQuery.matches ? 'dark' : 'light'));
+    };
+
+    if (forcedTheme) {
+      applyResolvedTheme(forcedTheme);
+      return () => undefined;
+    }
+
+    if (urlTheme) {
+      applyResolvedTheme(urlTheme);
+      return () => undefined;
+    }
+
+    applyFallbackTheme();
+    const themePromise = bridge.getTheme?.();
+    themePromise?.then((theme) => {
+        const resolved = normalizeTheme(theme);
+        if (!disposed && resolved) applyResolvedTheme(resolved);
+      })
+      .catch(() => undefined);
+
+    const unsubscribeTheme = bridge.onThemeChange?.((event) => {
+      const resolved = normalizeTheme(event.data.theme);
+      if (resolved) applyResolvedTheme(resolved);
+    });
+
+    mediaQuery.addEventListener('change', applyFallbackTheme);
+    return () => {
+      disposed = true;
+      mediaQuery.removeEventListener('change', applyFallbackTheme);
+      unsubscribeTheme?.();
+    };
+  }, [config.appearanceMode]);
 
   useEffect(() => {
     if (!loading && data) {
       markDashboardRendered().catch(() => undefined);
     }
   }, [loading, data, period]);
-
-  const config = draftConfig || data?.config || DEFAULT_CONFIG;
-  const summary = useMemo(() => (data ? resolveSummary(data.payload, period) : ''), [data, period]);
-  const updatedAt = useMemo(() => (data ? resolveUpdatedAt(data.payload, period) : undefined), [data, period]);
-  const state = config.state || DashboardState.View;
-  const isSetupState = state === DashboardState.Create || state === DashboardState.Config;
-  const shellStyle = { '--accent': config.accentColor } as CSSProperties;
 
   const handleConfigChange = (nextConfig: Required<PluginConfig>) => {
     setDraftConfig(nextConfig);
