@@ -6,10 +6,10 @@ export function EmptyGuide() {
     <div className="empty-guide">
       <Empty
         image={<IconSetting size="extra-large" />}
-        title="等待配置分析字段"
+        title="等待配置内容"
         description={
           <Typography.Text type="secondary">
-            请选择「过稿记录表」和 aily 写入的「周报摘要」字段，或通过 URL 参数传入 summary。
+            右边选择配置信息后预览内容。
           </Typography.Text>
         }
       />

@@ -63,6 +63,8 @@ export default function App(props: AppProps) {
   const updatedAt = useMemo(() => (data ? resolveUpdatedAt(data.payload, period) : undefined), [data, period]);
   const state = config.state || DashboardState.View;
   const isSetupState = state === DashboardState.Create || state === DashboardState.Config;
+  const needsSetup = isSetupState && (!config.tableId || !config.contentTypeValue);
+  const visibleSummary = needsSetup ? '' : summary;
   const shellStyle = { '--accent': config.accentColor } as CSSProperties;
 
   useEffect(() => {
@@ -191,8 +193,8 @@ export default function App(props: AppProps) {
           <div className="title-block">
             <Typography.Title heading={4}>{config.title || '数据分析'}</Typography.Title>
             <div className="meta-row">
-              <Tag color={data?.source === 'demo' ? 'amber' : 'green'} size="small">
-                {data?.source === 'demo' ? '演示数据' : '实时数据'}
+              <Tag color={needsSetup || data?.source === 'demo' ? 'amber' : 'green'} size="small">
+                {needsSetup ? '等待配置' : data?.source === 'demo' ? '演示数据' : '实时数据'}
               </Tag>
               {state === DashboardState.FullScreen && <Tag size="small">全屏</Tag>}
             </div>
@@ -216,7 +218,7 @@ export default function App(props: AppProps) {
           </div>
         </header>
 
-        <div className="summary-content">{summary ? <MarkdownText content={summary} /> : <EmptyGuide />}</div>
+        <div className="summary-content">{visibleSummary ? <MarkdownText content={visibleSummary} /> : <EmptyGuide />}</div>
 
         {config.showUpdatedAt && updatedAt && (
           <footer className="panel-footer">

@@ -102,22 +102,6 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
         </div>
 
         <div className="config-field">
-          <Typography.Text strong>内容类型字段</Typography.Text>
-          <Typography.Text type="secondary" className="config-help">
-            选择区分「过稿分析 / 影响力分析」这类标题的字段，通常是「内容」。
-          </Typography.Text>
-          <Select
-            value={config.contentTypeFieldId || undefined}
-            optionList={fieldOptions}
-            placeholder="例如：内容"
-            onChange={(value) => update({
-              contentTypeFieldId: String(value || ''),
-              contentTypeValue: '',
-            })}
-          />
-        </div>
-
-        <div className="config-field">
           <Typography.Text strong>内容项</Typography.Text>
           <Typography.Text type="secondary" className="config-help">
             选择这个插件要展示的分析维度，例如「过稿分析」。可以放置多个插件，分别选择不同内容项。
@@ -128,11 +112,16 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
             placeholder={
               config.contentTypeFieldId
                 ? contentOptions.length ? '请选择内容项' : '未读取到内容项'
-                : '请先选择内容类型字段'
+                : fieldOptions.length ? '未找到「内容」字段' : '请先选择数据表'
             }
             disabled={!config.contentTypeFieldId}
             onChange={(value) => update({ contentTypeValue: String(value || '') })}
           />
+          {!config.contentTypeFieldId && (
+            <Typography.Text type="secondary" className="config-help compact">
+              插件会自动读取名为「内容」的字段，用它来识别过稿分析、影响力分析等内容项。
+            </Typography.Text>
+          )}
         </div>
 
         <label className="config-check">

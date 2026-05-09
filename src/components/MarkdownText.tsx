@@ -6,6 +6,25 @@ interface MarkdownTextProps {
 
 type InlinePart = string | React.ReactElement;
 
+function normalizeBracketSections(content: string) {
+  const hasBracketSections = /【[^】]+】/.test(content);
+  if (!hasBracketSections) {
+    return {
+      content,
+      hasBracketSections,
+    };
+  }
+
+  return {
+    hasBracketSections,
+    content: content
+      .replace(/\s*【([^】]+)】\s*/g, '\n\n### $1\n')
+      .replace(/([。！？!?])\s*/g, '$1\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim(),
+  };
+}
+
 function renderInline(text: string): InlinePart[] {
   const parts: InlinePart[] = [];
   const pattern = /\*\*(.+?)\*\*/g;
@@ -28,9 +47,11 @@ function renderInline(text: string): InlinePart[] {
 }
 
 export function MarkdownText({ content }: MarkdownTextProps) {
-  const lines = content.split(/\r?\n/);
+  const normalized = normalizeBracketSections(content);
+  const lines = normalized.content.split(/\r?\n/);
   const nodes: React.ReactNode[] = [];
   let listItems: string[] = [];
+  let hasRenderedHeading = false;
 
   function flushList(key: string) {
     if (!listItems.length) return;
@@ -62,16 +83,25 @@ export function MarkdownText({ content }: MarkdownTextProps) {
 
     if (trimmed.startsWith('### ')) {
       nodes.push(<h3 key={key}>{renderInline(trimmed.slice(4))}</h3>);
+      hasRenderedHeading = true;
       return;
     }
 
     if (trimmed.startsWith('## ')) {
       nodes.push(<h2 key={key}>{renderInline(trimmed.slice(3))}</h2>);
+      hasRenderedHeading = true;
       return;
     }
 
     if (trimmed.startsWith('# ')) {
       nodes.push(<h1 key={key}>{renderInline(trimmed.slice(2))}</h1>);
+      hasRenderedHeading = true;
+      return;
+    }
+
+    if (normalized.hasBracketSections && !hasRenderedHeading) {
+      nodes.push(<h2 key={key}>{renderInline(trimmed)}</h2>);
+      hasRenderedHeading = true;
       return;
     }
 
