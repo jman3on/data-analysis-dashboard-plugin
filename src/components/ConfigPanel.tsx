@@ -153,7 +153,14 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
               contentOptions.length ? '请选择数据列分类' : '未读取到可用分类列'
             }
             disabled={!contentOptions.length}
-            onChange={(value) => update({ contentFieldId: String(value || '') })}
+            onChange={(value) => {
+              const nextContentFieldId = String(value || '');
+              const selectedOption = contentOptions.find((option) => option.value === nextContentFieldId);
+              update({
+                contentFieldId: nextContentFieldId,
+                title: selectedOption?.label || config.title,
+              });
+            }}
           />
         </div>
 
