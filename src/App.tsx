@@ -54,11 +54,14 @@ export default function App(props: AppProps) {
   };
 
   const config = draftConfig || data?.config || DEFAULT_CONFIG;
-  const periodOptions = data?.payload.periodOptions?.length
-    ? data.payload.periodOptions
-    : config.periodFields.length
-      ? config.periodFields.map(({ label, value }) => ({ label, value }))
-      : PERIOD_OPTIONS;
+  const periodOptions = useMemo(
+    () => (data?.payload.periodOptions?.length
+      ? data.payload.periodOptions
+      : config.periodFields.length
+        ? config.periodFields.map(({ label, value }) => ({ label, value }))
+        : PERIOD_OPTIONS),
+    [config.periodFields, data?.payload.periodOptions],
+  );
   const summary = useMemo(() => (data ? resolveSummary(data.payload, period) : ''), [data, period]);
   const updatedAt = useMemo(() => (data ? resolveUpdatedAt(data.payload, period) : undefined), [data, period]);
   const state = config.state || DashboardState.View;
@@ -131,6 +134,21 @@ export default function App(props: AppProps) {
       markDashboardRendered().catch(() => undefined);
     }
   }, [loading, data, period]);
+
+  useEffect(() => {
+    if (!data || !periodOptions.length) return;
+
+    const hasCurrentPeriod = periodOptions.some((option) => option.value === period);
+    const firstPeriodWithContent = periodOptions.find((option) => resolveSummary(data.payload, option.value))?.value;
+    const payloadPeriod = data.payload.period && periodOptions.some((option) => option.value === data.payload.period)
+      ? data.payload.period
+      : undefined;
+    const fallbackPeriod = payloadPeriod || firstPeriodWithContent || periodOptions[0]?.value;
+
+    if (!hasCurrentPeriod && fallbackPeriod && fallbackPeriod !== period) {
+      setPeriod(fallbackPeriod);
+    }
+  }, [data, period, periodOptions]);
 
   const handleConfigChange = (nextConfig: Required<PluginConfig>) => {
     setDraftConfig(nextConfig);
@@ -208,6 +226,7 @@ export default function App(props: AppProps) {
               optionList={periodOptions}
               size="small"
               className="period-select"
+              dropdownClassName="period-select-dropdown"
               onChange={(value) => setPeriod(value as PeriodKey)}
             />
             <Button

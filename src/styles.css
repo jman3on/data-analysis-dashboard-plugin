@@ -145,7 +145,20 @@ body {
 }
 
 .period-select {
-  width: 78px;
+  width: 142px;
+  max-width: min(42vw, 142px);
+}
+
+.period-select .semi-select-selection-text {
+  max-width: none;
+}
+
+.period-select-dropdown {
+  min-width: 154px;
+}
+
+.period-select-dropdown .semi-select-option {
+  white-space: nowrap;
 }
 
 .summary-content {
@@ -398,7 +411,7 @@ body {
   }
 
   .period-select {
-    width: 112px;
+    width: 138px;
   }
 
   .summary-content {

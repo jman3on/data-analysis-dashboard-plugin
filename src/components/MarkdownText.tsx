@@ -7,17 +7,18 @@ interface MarkdownTextProps {
 type InlinePart = string | React.ReactElement;
 
 function normalizeBracketSections(content: string) {
-  const hasBracketSections = /【[^】]+】/.test(content);
+  const contentWithLineBreaks = content.replace(/<br\s*\/?>/gi, '\n');
+  const hasBracketSections = /【[^】]+】/.test(contentWithLineBreaks);
   if (!hasBracketSections) {
     return {
-      content,
+      content: contentWithLineBreaks,
       hasBracketSections,
     };
   }
 
   return {
     hasBracketSections,
-    content: content
+    content: contentWithLineBreaks
       .replace(/\s*【([^】]+)】\s*/g, '\n\n### $1\n')
       .replace(/([。！？!?])\s*/g, '$1\n')
       .replace(/\n{3,}/g, '\n\n')
