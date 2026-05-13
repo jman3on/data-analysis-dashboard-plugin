@@ -52,8 +52,11 @@ interface DataItemLike {
 
 const CONTENT_FIELD_FALLBACKS = ['周', '月', '季度', '半年', '周报摘要', 'summary', 'analysis', 'content', 'text'];
 const CONTENT_TYPE_FIELD_FALLBACKS = ['内容', '标题', '类型', '分类', 'contentType', 'type', 'category'];
+const DESIGNER_FIELD_FALLBACKS = ['人员', '设计师', '成员', '姓名', '负责人', 'owner', 'designer', 'user'];
+const TIME_FIELD_FALLBACKS = ['时间', '日期', '月份', '周期', 'period', 'time', 'date'];
 const TITLE_FIELD_FALLBACKS = ['标题', 'title'];
 const UPDATED_AT_FIELD_FALLBACKS = ['最后更新时间', '消息创建时间', 'updatedAt', 'updated_at'];
+const ANALYSIS_FIELD_FALLBACKS = ['我的卡点', '待提升', '技能成长', '工作量/预警', '工作流/预警'];
 const PERIOD_FIELD_CANDIDATES: Array<{ label: string; value: string; names: string[] }> = [
   { label: '周', value: 'week', names: ['周', '周报', '本周'] },
   { label: '月', value: 'month', names: ['月', '月报', '本月'] },
@@ -210,6 +213,14 @@ function normalizeComparableText(value?: string): string {
 function fieldMatchesAnyName(field: FieldMetaLike, names: string[]): boolean {
   const fieldName = normalizeComparableText(readFieldName(field));
   return names.some((name) => fieldName === normalizeComparableText(name));
+}
+
+function findFieldByNames(fieldMetas: FieldMetaLike[], names: string[], preferredFieldId?: string): FieldMetaLike | undefined {
+  if (preferredFieldId) {
+    const preferred = fieldMetas.find((field) => readFieldId(field) === preferredFieldId);
+    if (preferred) return preferred;
+  }
+  return fieldMetas.find((field) => fieldMatchesAnyName(field, names));
 }
 
 function inferPeriodFields(fieldMetas: FieldMetaLike[], config: PluginConfig): PeriodFieldConfig[] {
@@ -482,6 +493,42 @@ export async function loadContentValueOptions(tableId?: string, fieldId?: string
   }
 }
 
+export async function loadDesignerOptions(tableId?: string): Promise<DataFieldOption[]> {
+  if (!isValidTableId(tableId)) return [];
+
+  try {
+    const table = (await withTimeout(officialBase.getTableById?.(tableId))) as TableLike | undefined;
+    const fieldMetas = ((await withTimeout(table?.getFieldMetaList?.())) || []) as FieldMetaLike[];
+    const designerField = findFieldByNames(fieldMetas, DESIGNER_FIELD_FALLBACKS);
+    const designerFieldId = designerField ? readFieldId(designerField) : undefined;
+    if (!designerFieldId) return [];
+
+    return loadContentValueOptions(tableId, designerFieldId);
+  } catch {
+    return [];
+  }
+}
+
+export async function loadAnalysisFieldOptions(tableId?: string): Promise<DataFieldOption[]> {
+  if (!isValidTableId(tableId)) return [];
+
+  try {
+    const table = (await withTimeout(officialBase.getTableById?.(tableId))) as TableLike | undefined;
+    const fields = (await withTimeout(table?.getFieldMetaList?.())) as FieldMetaLike[] | undefined;
+    return (fields || [])
+      .map<DataFieldOption | undefined>((field) => {
+        const value = readFieldId(field);
+        const label = readFieldName(field) || value;
+        if (!value || !label) return undefined;
+        if (!fieldMatchesAnyName(field, ANALYSIS_FIELD_FALLBACKS)) return undefined;
+        return { label, value, fieldName: label };
+      })
+      .filter((option): option is DataFieldOption => Boolean(option));
+  } catch {
+    return [];
+  }
+}
+
 async function readBaseTablePayload(config: PluginConfig): Promise<SummaryPayload | undefined> {
   const table = await getTableByConfig(config);
   if (!table?.getFieldMetaList || !table.getRecords) return undefined;
@@ -489,6 +536,54 @@ async function readBaseTablePayload(config: PluginConfig): Promise<SummaryPayloa
   const fieldMetas = ((await withTimeout(table.getFieldMetaList())) || []) as FieldMetaLike[];
   const response = await withTimeout(table.getRecords({ pageSize: 50 }));
   const records = response?.records || [];
+  const selectedContentField = config.contentFieldId
+    ? fieldMetas.find((field) => readFieldId(field) === config.contentFieldId)
+    : undefined;
+  const selectedContentFieldName = selectedContentField ? readFieldName(selectedContentField) : undefined;
+  const designerField = findFieldByNames(fieldMetas, DESIGNER_FIELD_FALLBACKS, config.designerFieldId);
+  const designerFieldId = designerField ? readFieldId(designerField) : undefined;
+  const timeField = findFieldByNames(fieldMetas, TIME_FIELD_FALLBACKS, config.timeFieldId);
+  const timeFieldId = timeField ? readFieldId(timeField) : undefined;
+
+  if (config.designerValue && config.contentFieldId && timeFieldId) {
+    const expectedDesigner = normalizeComparableText(config.designerValue);
+    const summaries: NonNullable<SummaryPayload['summaries']> = {};
+    const periodOptions: NonNullable<SummaryPayload['periodOptions']> = [];
+    let fallbackTitle: string | undefined;
+    let fallbackUpdatedAt: string | undefined;
+
+    for (const record of records) {
+      const fields = (record.fields && typeof record.fields === 'object' ? record.fields : record) as UnknownRecord;
+      const designer = pickCellString(fields, fieldMetas, [
+        designerFieldId || '',
+        ...DESIGNER_FIELD_FALLBACKS,
+      ]);
+      if (expectedDesigner && normalizeComparableText(designer) !== expectedDesigner) continue;
+
+      const periodLabel = pickCellString(fields, fieldMetas, [timeFieldId, ...TIME_FIELD_FALLBACKS]);
+      const summary = pickCellString(fields, fieldMetas, [config.contentFieldId]);
+      if (!periodLabel || !summary) continue;
+
+      summaries[periodLabel] = summary;
+      periodOptions.push({ label: periodLabel, value: periodLabel });
+      fallbackTitle = fallbackTitle || pickCellString(fields, fieldMetas, TITLE_FIELD_FALLBACKS);
+      fallbackUpdatedAt = fallbackUpdatedAt || pickCellString(fields, fieldMetas, UPDATED_AT_FIELD_FALLBACKS);
+    }
+
+    const selectedPeriod = periodOptions[0]?.value;
+    const summary = selectedPeriod ? summaries[selectedPeriod] : undefined;
+    if (summary) {
+      return {
+        title: fallbackTitle || selectedContentFieldName || config.title,
+        summary,
+        summaries,
+        period: selectedPeriod,
+        periodOptions,
+        updatedAt: fallbackUpdatedAt,
+      };
+    }
+  }
+
   const periodFields = inferPeriodFields(fieldMetas, config);
   const contentKeys = [config.contentFieldId || '', ...periodFields.map((field) => field.fieldId), ...CONTENT_FIELD_FALLBACKS];
 
@@ -530,6 +625,7 @@ async function resolveDataConditions(config: PluginConfig): Promise<UnknownRecor
   if (!tableId) return [];
 
   const groupFieldIds = [
+    config.designerFieldId,
     config.contentTypeFieldId,
   ].filter((fieldId, index, fields): fieldId is string =>
     Boolean(fieldId && fields.indexOf(fieldId) === index),
@@ -661,6 +757,9 @@ export async function saveDashboardConfig(config: PluginConfig): Promise<boolean
         contentFieldId: config.contentFieldId,
         contentTypeFieldId: config.contentTypeFieldId,
         contentTypeValue: config.contentTypeValue,
+        designerFieldId: config.designerFieldId,
+        designerValue: config.designerValue,
+        timeFieldId: config.timeFieldId,
         periodFields: [],
         title: config.title,
         showUpdatedAt: config.showUpdatedAt,

@@ -19,6 +19,9 @@ export interface PluginConfig {
   contentFieldId?: string;
   contentTypeFieldId?: string;
   contentTypeValue?: string;
+  designerFieldId?: string;
+  designerValue?: string;
+  timeFieldId?: string;
   periodFields?: PeriodFieldConfig[];
   title?: string;
   showUpdatedAt?: boolean;

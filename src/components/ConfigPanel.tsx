@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Input, Select, Typography } from '@douyinfe/semi-ui';
 import { APPEARANCE_OPTIONS, COLOR_OPTIONS } from '../constants';
-import { loadContentValueOptions, loadDataFields, loadDataTables } from '../data/sdkSource';
+import { loadAnalysisFieldOptions, loadDataFields, loadDataTables, loadDesignerOptions } from '../data/sdkSource';
 import { AppearanceMode, DataFieldOption, DataTableOption, PluginConfig } from '../types';
 
 interface ConfigPanelProps {
@@ -14,6 +14,7 @@ interface ConfigPanelProps {
 export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelProps) {
   const [tableOptions, setTableOptions] = useState<DataTableOption[]>([]);
   const [fieldOptions, setFieldOptions] = useState<DataFieldOption[]>([]);
+  const [designerOptions, setDesignerOptions] = useState<DataFieldOption[]>([]);
   const [contentOptions, setContentOptions] = useState<DataFieldOption[]>([]);
 
   const update = (patch: Partial<Required<PluginConfig>>) => {
@@ -39,36 +40,49 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
       if (disposed) return;
       setFieldOptions(options);
 
-      if (!config.contentTypeFieldId) {
-        const contentField = options.find((option) => option.fieldName === '内容' || option.label === '内容');
-        if (contentField) {
-          update({
-            contentTypeFieldId: contentField.value,
-            contentTypeValue: '',
-          });
-        }
-      }
+      const designerField = options.find((option) => ['人员', '设计师'].includes(option.fieldName || option.label));
+      const timeField = options.find((option) => option.fieldName === '时间' || option.label === '时间');
+      const patch: Partial<Required<PluginConfig>> = {};
+      if (!config.designerFieldId && designerField) patch.designerFieldId = designerField.value;
+      if (!config.timeFieldId && timeField) patch.timeFieldId = timeField.value;
+      if (Object.keys(patch).length) update(patch);
     });
     return () => {
       disposed = true;
     };
-  }, [config.tableId, config.contentTypeFieldId]);
+  }, [config.tableId, config.designerFieldId, config.timeFieldId]);
 
   useEffect(() => {
     let disposed = false;
-    loadContentValueOptions(config.tableId, config.contentTypeFieldId).then((options) => {
+    loadDesignerOptions(config.tableId).then((options) => {
       if (disposed) return;
-      const hasCurrentValue = options.some((option) => option.value === config.contentTypeValue);
-      setContentOptions(
-        config.contentTypeValue && !hasCurrentValue
-          ? [{ label: config.contentTypeValue, value: config.contentTypeValue }, ...options]
+      const hasCurrentValue = options.some((option) => option.value === config.designerValue);
+      setDesignerOptions(
+        config.designerValue && !hasCurrentValue
+          ? [{ label: config.designerValue, value: config.designerValue }, ...options]
           : options,
       );
     });
     return () => {
       disposed = true;
     };
-  }, [config.tableId, config.contentTypeFieldId, config.contentTypeValue]);
+  }, [config.tableId, config.designerValue]);
+
+  useEffect(() => {
+    let disposed = false;
+    loadAnalysisFieldOptions(config.tableId).then((options) => {
+      if (disposed) return;
+      const hasCurrentValue = options.some((option) => option.value === config.contentFieldId);
+      setContentOptions(
+        config.contentFieldId && !hasCurrentValue
+          ? [{ label: config.contentFieldId, value: config.contentFieldId }, ...options]
+          : options,
+      );
+    });
+    return () => {
+      disposed = true;
+    };
+  }, [config.tableId, config.contentFieldId]);
 
   return (
     <aside className="config-panel">
@@ -96,32 +110,51 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
               contentFieldId: '',
               contentTypeFieldId: '',
               contentTypeValue: '',
+              designerFieldId: '',
+              designerValue: '',
+              timeFieldId: '',
               periodFields: [],
             })}
           />
         </div>
 
         <div className="config-field">
-          <Typography.Text strong>内容项</Typography.Text>
+          <Typography.Text strong>设计师</Typography.Text>
           <Typography.Text type="secondary" className="config-help">
-            选择这个插件要展示的分析维度，例如「过稿分析」。可以放置多个插件，分别选择不同内容项。
+            选择这个仪表盘对应的设计师，插件会只读取该设计师的数据。
           </Typography.Text>
           <Select
-            value={config.contentTypeValue || undefined}
-            optionList={contentOptions}
+            value={config.designerValue || undefined}
+            optionList={designerOptions}
             placeholder={
-              config.contentTypeFieldId
-                ? contentOptions.length ? '请选择内容项' : '未读取到内容项'
-                : fieldOptions.length ? '未找到「内容」字段' : '请先选择数据表'
+              config.designerFieldId
+                ? designerOptions.length ? '请选择设计师' : '未读取到设计师'
+                : fieldOptions.length ? '未找到「人员」字段' : '请先选择数据表'
             }
-            disabled={!config.contentTypeFieldId}
-            onChange={(value) => update({ contentTypeValue: String(value || '') })}
+            disabled={!config.designerFieldId}
+            onChange={(value) => update({ designerValue: String(value || '') })}
           />
-          {!config.contentTypeFieldId && (
+          {!config.designerFieldId && (
             <Typography.Text type="secondary" className="config-help compact">
-              插件会自动读取名为「内容」的字段，用它来识别过稿分析、影响力分析等内容项。
+              插件会自动读取名为「人员」或「设计师」的字段。
             </Typography.Text>
           )}
+        </div>
+
+        <div className="config-field">
+          <Typography.Text strong>数据列分类</Typography.Text>
+          <Typography.Text type="secondary" className="config-help">
+            选择这个插件要展示的分析列，例如「我的卡点」。可以放置多个插件，分别选择不同分类。
+          </Typography.Text>
+          <Select
+            value={config.contentFieldId || undefined}
+            optionList={contentOptions}
+            placeholder={
+              contentOptions.length ? '请选择数据列分类' : '未读取到可用分类列'
+            }
+            disabled={!contentOptions.length}
+            onChange={(value) => update({ contentFieldId: String(value || '') })}
+          />
         </div>
 
         <label className="config-check">
