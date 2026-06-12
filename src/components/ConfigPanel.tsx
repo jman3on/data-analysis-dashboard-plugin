@@ -41,7 +41,7 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
       setFieldOptions(options);
 
       const designerField = options.find((option) => ['人员', '设计师'].includes(option.fieldName || option.label));
-      const timeField = options.find((option) => option.fieldName === '时间' || option.label === '时间');
+      const timeField = options.find((option) => option.fieldName === '统计周期' || option.label === '统计周期');
       const patch: Partial<Required<PluginConfig>> = {};
       if (!config.designerFieldId && designerField) patch.designerFieldId = designerField.value;
       if (!config.timeFieldId && timeField) patch.timeFieldId = timeField.value;
