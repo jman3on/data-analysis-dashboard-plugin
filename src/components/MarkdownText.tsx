@@ -6,73 +6,8 @@ interface MarkdownTextProps {
 
 type InlinePart = string | React.ReactElement;
 
-const STRUCTURED_MARKDOWN_PATTERN = /(^|\n)\s*(#{1,6}\s|[-*]\s|\d+[.、]\s|[①②③④⑤⑥⑦⑧⑨⑩])/;
-const PARAGRAPH_START_PATTERN =
-  /(从(?:月份|时间|资源|任务|数据|整体|分布|类型|阶段|维度)[^，。；;]{0,10}(?:看|来看|上)|(?:资源类型|任务类型|整体|总体|其中|此外|同时|另一方面|这半年|本月|本周|本季度|下一步|建议|风险|亮点|问题|结论)(?:上|来看|看)?)/g;
-
-function normalizePlainText(content: string) {
-  return content
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/\\n/g, '\n')
-    .replace(/\r\n?/g, '\n')
-    .replace(/\u00a0/g, ' ');
-}
-
-function splitSentences(text: string): string[] {
-  const sentences = text.match(/[^。！？!?；;]+[。！？!?；;]?/g) || [text];
-  return sentences.map((sentence) => sentence.trim()).filter(Boolean);
-}
-
-function isParagraphStarter(text: string) {
-  PARAGRAPH_START_PATTERN.lastIndex = 0;
-  return PARAGRAPH_START_PATTERN.test(text);
-}
-
-function groupSentences(sentences: string[]): string[] {
-  const groups: string[] = [];
-  let current = '';
-
-  sentences.forEach((sentence, index) => {
-    const next = current ? `${current}${sentence}` : sentence;
-    const nextSentence = sentences[index + 1] || '';
-    const shouldBreak =
-      next.length >= 72 ||
-      isParagraphStarter(nextSentence) ||
-      index === sentences.length - 1;
-
-    if (shouldBreak) {
-      groups.push(next);
-      current = '';
-    } else {
-      current = next;
-    }
-  });
-
-  if (current) groups.push(current);
-  return groups;
-}
-
-function autoParagraphPlainText(content: string) {
-  const normalized = normalizePlainText(content).trim();
-  if (!normalized || STRUCTURED_MARKDOWN_PATTERN.test(normalized) || /\n\s*\n/.test(normalized)) {
-    return normalized;
-  }
-
-  const lines = normalized
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (lines.length > 1) {
-    return lines.join('\n\n');
-  }
-
-  if (normalized.length < 110) return normalized;
-  return groupSentences(splitSentences(normalized)).join('\n\n');
-}
-
 function normalizeBracketSections(content: string) {
-  const contentWithLineBreaks = autoParagraphPlainText(content);
+  const contentWithLineBreaks = content.replace(/<br\s*\/?>/gi, '\n');
   const hasBracketSections = /【[^】]+】/.test(contentWithLineBreaks);
   if (!hasBracketSections) {
     return {

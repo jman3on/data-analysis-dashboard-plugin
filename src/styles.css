@@ -164,15 +164,15 @@ body {
 .summary-content {
   min-width: 0;
   overflow: auto;
-  padding: 18px 20px 20px;
+  padding: 12px 14px 14px;
 }
 
 .markdown-text {
   max-width: none;
   margin: 0;
   color: var(--text);
-  font-size: 15px;
-  line-height: 1.82;
+  font-size: 13px;
+  line-height: 1.55;
   word-break: break-word;
 }
 
@@ -187,33 +187,32 @@ body {
 .markdown-text h1,
 .markdown-text h2 {
   margin-top: 2px;
-  margin-bottom: 12px;
-  font-size: 18px;
-  line-height: 1.38;
+  margin-bottom: 10px;
+  font-size: 16px;
+  line-height: 1.32;
   font-weight: 700;
 }
 
 .markdown-text h3 {
-  margin-top: 16px;
-  margin-bottom: 8px;
-  font-size: 15px;
-  line-height: 1.5;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 1.4;
   font-weight: 650;
   color: var(--accent);
 }
 
 .markdown-text p {
-  margin: 0 0 12px;
+  margin: 5px 0;
 }
 
 .markdown-text ul {
   padding-left: 18px;
-  margin: 6px 0 12px;
+  margin: 5px 0 8px;
 }
 
 .markdown-text li {
-  margin: 5px 0;
-  line-height: 1.78;
+  margin: 3px 0;
 }
 
 .markdown-text strong {
@@ -417,11 +416,6 @@ body {
 
   .summary-content {
     padding: 15px 14px 18px;
-  }
-
-  .markdown-text {
-    font-size: 14px;
-    line-height: 1.76;
   }
 
   .markdown-text h1,
