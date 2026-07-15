@@ -184,8 +184,10 @@ body {
 
 .summary-content {
   min-width: 0;
+  min-height: 0;
   overflow: auto;
-  padding: 8px 14px 28px;
+  margin-bottom: 18px;
+  padding: 8px 14px 10px;
   background: var(--surface);
 }
 
@@ -288,6 +290,7 @@ body {
 }
 
 .config-mode .summary-content {
+  margin-bottom: 0;
   padding: 24px 28px;
 }
 
@@ -458,7 +461,8 @@ body {
   }
 
   .summary-content {
-    padding: 8px 14px 30px;
+    margin-bottom: 20px;
+    padding: 8px 14px 10px;
   }
 
   .markdown-text h1,
