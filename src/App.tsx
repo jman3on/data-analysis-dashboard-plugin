@@ -1,5 +1,5 @@
 import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Select, Spin, Tag, Toast, Typography } from '@douyinfe/semi-ui';
+import { Button, Spin, Tag, Toast, Typography } from '@douyinfe/semi-ui';
 import { IconRefresh } from '@douyinfe/semi-icons';
 import { bridge } from '@lark-base-open/js-sdk';
 import { DEFAULT_CONFIG, PERIOD_OPTIONS } from './constants';
@@ -254,14 +254,18 @@ export default function App(props: AppProps) {
           )}
 
           <div className="toolbar">
-            <Select
+            <select
               value={period}
-              optionList={periodOptions}
-              size="small"
               className="period-select"
-              dropdownClassName="period-select-dropdown"
-              onChange={(value) => setPeriod(value as PeriodKey)}
-            />
+              aria-label="选择统计周期"
+              onChange={(event) => setPeriod(event.currentTarget.value as PeriodKey)}
+            >
+              {periodOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
             <Button
               icon={<IconRefresh />}
               aria-label="刷新"

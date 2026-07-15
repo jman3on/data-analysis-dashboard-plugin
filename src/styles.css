@@ -50,6 +50,8 @@ body {
   gap: 12px;
   align-content: start;
   background: var(--surface);
+  border-radius: 0 0 24px 24px;
+  overflow: hidden;
 }
 
 .dashboard-shell.config-mode {
@@ -100,7 +102,7 @@ body {
 .panel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   flex-wrap: nowrap;
   gap: 12px;
   border-bottom: 0;
@@ -144,35 +146,40 @@ body {
 
 .toolbar {
   flex: 0 0 auto;
-  margin-left: auto;
+  margin-left: 0;
   white-space: nowrap;
 }
 
 .period-select {
-  width: 142px;
+  width: 118px;
   max-width: none;
-  flex: 0 0 142px;
-}
-
-.period-select .semi-select-selection-text {
-  max-width: none;
-}
-
-.period-select-dropdown {
-  min-width: 154px;
-}
-
-.period-select-dropdown .semi-select-option {
-  white-space: nowrap;
+  flex: 0 0 118px;
+  height: 26px;
+  padding: 0 26px 0 10px;
+  border: 1px solid rgba(31, 35, 41, 0.14);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  line-height: 24px;
+  outline: none;
+  cursor: pointer;
 }
 
 .toolbar .semi-button {
-  color: var(--text);
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  color: var(--text-muted);
 }
 
 .toolbar .semi-button .semi-icon,
 .toolbar .semi-button svg {
-  color: var(--text);
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  stroke-width: 1.8;
 }
 
 .summary-content {
@@ -446,8 +453,8 @@ body {
   }
 
   .period-select {
-    width: 138px;
-    flex-basis: 138px;
+    width: 112px;
+    flex-basis: 112px;
   }
 
   .summary-content {
