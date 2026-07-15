@@ -78,8 +78,8 @@ body {
   display: grid;
   grid-template-rows: auto 1fr auto;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -103,12 +103,12 @@ body {
   justify-content: space-between;
   flex-wrap: nowrap;
   gap: 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   background: var(--surface);
 }
 
 .panel-footer {
-  border-top: 1px solid var(--border);
+  border-top: 0;
 }
 
 .title-block {
