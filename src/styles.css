@@ -49,7 +49,7 @@ body {
   display: grid;
   gap: 12px;
   align-content: start;
-  background: transparent;
+  background: var(--surface);
 }
 
 .dashboard-shell.config-mode {
@@ -101,8 +101,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: nowrap;
   gap: 12px;
   border-bottom: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .panel-footer {
@@ -142,11 +144,14 @@ body {
 
 .toolbar {
   flex: 0 0 auto;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .period-select {
   width: 142px;
-  max-width: min(42vw, 142px);
+  max-width: none;
+  flex: 0 0 142px;
 }
 
 .period-select .semi-select-selection-text {
@@ -161,10 +166,20 @@ body {
   white-space: nowrap;
 }
 
+.toolbar .semi-button {
+  color: var(--text);
+}
+
+.toolbar .semi-button .semi-icon,
+.toolbar .semi-button svg {
+  color: var(--text);
+}
+
 .summary-content {
   min-width: 0;
   overflow: auto;
   padding: 12px 14px 14px;
+  background: var(--surface);
 }
 
 .markdown-text {
@@ -430,18 +445,9 @@ body {
     min-height: calc(100vh - 20px);
   }
 
-  .panel-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .toolbar {
-    width: 100%;
-    justify-content: space-between;
-  }
-
   .period-select {
     width: 138px;
+    flex-basis: 138px;
   }
 
   .summary-content {

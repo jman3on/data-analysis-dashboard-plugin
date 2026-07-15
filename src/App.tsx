@@ -27,6 +27,14 @@ function applyResolvedTheme(theme: ResolvedTheme) {
   document.body.setAttribute('theme-mode', theme);
 }
 
+function isEmbeddedInHost(): boolean {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+}
+
 export default function App(props: AppProps) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [draftConfig, setDraftConfig] = useState<Required<PluginConfig> | null>(null);
@@ -70,6 +78,7 @@ export default function App(props: AppProps) {
   const hasConfiguredSource = Boolean(config.tableId && config.designerValue && config.contentFieldId);
   const hideDemoData = needsSetup || (hasConfiguredSource && data?.source === 'demo');
   const visibleSummary = hideDemoData ? '' : summary;
+  const showInlineTitle = !isEmbeddedInHost();
   const shellStyle = {
     '--accent': config.accentColor,
     '--surface': config.panelBackgroundColor,
@@ -138,6 +147,10 @@ export default function App(props: AppProps) {
       markDashboardRendered().catch(() => undefined);
     }
   }, [loading, data, period]);
+
+  useEffect(() => {
+    document.title = config.title || '数据分析展示器';
+  }, [config.title]);
 
   useEffect(() => {
     if (!data || !periodOptions.length) return;
@@ -214,19 +227,31 @@ export default function App(props: AppProps) {
     >
       <section className="summary-panel">
         <header className="panel-header">
-          <div className="title-block">
-            <Typography.Title heading={4}>{config.title || '数据分析'}</Typography.Title>
-            {(config.showStatusTag || state === DashboardState.FullScreen) && (
-              <div className="meta-row">
-                {config.showStatusTag && (
-                  <Tag color={hideDemoData || data?.source === 'demo' ? 'amber' : 'green'} size="small">
-                    {needsSetup ? '等待配置' : hideDemoData ? '等待数据' : data?.source === 'demo' ? '演示数据' : '实时数据'}
-                  </Tag>
-                )}
-                {state === DashboardState.FullScreen && <Tag size="small">全屏</Tag>}
-              </div>
-            )}
-          </div>
+          {showInlineTitle && (
+            <div className="title-block">
+              <Typography.Title heading={4}>{config.title || '数据分析'}</Typography.Title>
+              {(config.showStatusTag || state === DashboardState.FullScreen) && (
+                <div className="meta-row">
+                  {config.showStatusTag && (
+                    <Tag color={hideDemoData || data?.source === 'demo' ? 'amber' : 'green'} size="small">
+                      {needsSetup ? '等待配置' : hideDemoData ? '等待数据' : data?.source === 'demo' ? '演示数据' : '实时数据'}
+                    </Tag>
+                  )}
+                  {state === DashboardState.FullScreen && <Tag size="small">全屏</Tag>}
+                </div>
+              )}
+            </div>
+          )}
+          {!showInlineTitle && (config.showStatusTag || state === DashboardState.FullScreen) && (
+            <div className="meta-row">
+              {config.showStatusTag && (
+                <Tag color={hideDemoData || data?.source === 'demo' ? 'amber' : 'green'} size="small">
+                  {needsSetup ? '等待配置' : hideDemoData ? '等待数据' : data?.source === 'demo' ? '演示数据' : '实时数据'}
+                </Tag>
+              )}
+              {state === DashboardState.FullScreen && <Tag size="small">全屏</Tag>}
+            </div>
+          )}
 
           <div className="toolbar">
             <Select

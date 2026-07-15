@@ -799,6 +799,8 @@ export async function saveDashboardConfig(config: PluginConfig): Promise<boolean
 
   return Boolean(
     await sdk.saveConfig({
+      title: config.title,
+      name: config.title,
       dataConditions,
       customConfig: {
         tableId: dataConditions[0]?.tableId || config.tableId,
