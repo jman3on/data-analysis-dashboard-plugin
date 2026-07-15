@@ -171,9 +171,24 @@ body {
   max-width: none;
   margin: 0;
   color: var(--text);
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.72;
   word-break: break-word;
+}
+
+.markdown-text.text-size-small {
+  font-size: 13px;
+  line-height: 1.62;
+}
+
+.markdown-text.text-size-medium {
+  font-size: 14px;
+  line-height: 1.72;
+}
+
+.markdown-text.text-size-large {
+  font-size: 16px;
+  line-height: 1.78;
 }
 
 .markdown-text h1,
@@ -187,23 +202,23 @@ body {
 .markdown-text h1,
 .markdown-text h2 {
   margin-top: 2px;
-  margin-bottom: 10px;
-  font-size: 16px;
+  margin-bottom: 12px;
+  font-size: 1.22em;
   line-height: 1.32;
   font-weight: 700;
 }
 
 .markdown-text h3 {
-  margin-top: 12px;
-  margin-bottom: 6px;
-  font-size: 13px;
+  margin-top: 16px;
+  margin-bottom: 7px;
+  font-size: 1em;
   line-height: 1.4;
   font-weight: 650;
   color: var(--accent);
 }
 
 .markdown-text p {
-  margin: 5px 0;
+  margin: 8px 0;
 }
 
 .markdown-text ul {
@@ -257,21 +272,19 @@ body {
 .config-mode .markdown-text {
   max-width: 780px;
   margin: 0 auto;
-  font-size: 16px;
-  line-height: 1.72;
 }
 
 .config-mode .markdown-text h1,
 .config-mode .markdown-text h2 {
   margin-top: 4px;
   margin-bottom: 16px;
-  font-size: 22px;
+  font-size: 1.32em;
 }
 
 .config-mode .markdown-text h3 {
   margin-top: 18px;
   margin-bottom: 8px;
-  font-size: 16px;
+  font-size: 1em;
 }
 
 .config-panel-scroll {
@@ -335,6 +348,23 @@ body {
 .color-swatch.is-selected {
   border-color: var(--surface);
   box-shadow: 0 0 0 2px var(--accent);
+}
+
+.color-input-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.color-input-row input[type='color'] {
+  width: 44px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  cursor: pointer;
 }
 
 .config-note {

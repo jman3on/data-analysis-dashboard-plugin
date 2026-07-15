@@ -70,7 +70,11 @@ export default function App(props: AppProps) {
   const hasConfiguredSource = Boolean(config.tableId && config.designerValue && config.contentFieldId);
   const hideDemoData = needsSetup || (hasConfiguredSource && data?.source === 'demo');
   const visibleSummary = hideDemoData ? '' : summary;
-  const shellStyle = { '--accent': config.accentColor } as CSSProperties;
+  const shellStyle = {
+    '--accent': config.accentColor,
+    '--surface': config.panelBackgroundColor,
+    '--text': config.textColor,
+  } as CSSProperties;
 
   useEffect(() => {
     refresh();
@@ -212,12 +216,16 @@ export default function App(props: AppProps) {
         <header className="panel-header">
           <div className="title-block">
             <Typography.Title heading={4}>{config.title || '数据分析'}</Typography.Title>
-            <div className="meta-row">
-              <Tag color={hideDemoData || data?.source === 'demo' ? 'amber' : 'green'} size="small">
-                {needsSetup ? '等待配置' : hideDemoData ? '等待数据' : data?.source === 'demo' ? '演示数据' : '实时数据'}
-              </Tag>
-              {state === DashboardState.FullScreen && <Tag size="small">全屏</Tag>}
-            </div>
+            {(config.showStatusTag || state === DashboardState.FullScreen) && (
+              <div className="meta-row">
+                {config.showStatusTag && (
+                  <Tag color={hideDemoData || data?.source === 'demo' ? 'amber' : 'green'} size="small">
+                    {needsSetup ? '等待配置' : hideDemoData ? '等待数据' : data?.source === 'demo' ? '演示数据' : '实时数据'}
+                  </Tag>
+                )}
+                {state === DashboardState.FullScreen && <Tag size="small">全屏</Tag>}
+              </div>
+            )}
           </div>
 
           <div className="toolbar">
@@ -239,7 +247,17 @@ export default function App(props: AppProps) {
           </div>
         </header>
 
-        <div className="summary-content">{visibleSummary ? <MarkdownText content={visibleSummary} /> : <EmptyGuide />}</div>
+        <div className="summary-content">
+          {visibleSummary ? (
+            <MarkdownText
+              content={visibleSummary}
+              displayMode={config.textDisplayMode}
+              textSize={config.textSize}
+            />
+          ) : (
+            <EmptyGuide />
+          )}
+        </div>
 
         {config.showUpdatedAt && updatedAt && (
           <footer className="panel-footer">

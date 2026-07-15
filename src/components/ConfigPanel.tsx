@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Button, Input, Select, Typography } from '@douyinfe/semi-ui';
-import { APPEARANCE_OPTIONS, COLOR_OPTIONS } from '../constants';
+import { APPEARANCE_OPTIONS, COLOR_OPTIONS, TEXT_DISPLAY_MODE_OPTIONS, TEXT_SIZE_OPTIONS } from '../constants';
 import { loadAnalysisFieldOptions, loadDataFields, loadDataTables, loadDesignerOptions } from '../data/sdkSource';
-import { AppearanceMode, DataFieldOption, DataTableOption, PluginConfig } from '../types';
+import { AppearanceMode, DataFieldOption, DataTableOption, PluginConfig, TextDisplayMode, TextSize } from '../types';
 
 interface ConfigPanelProps {
   config: Required<PluginConfig>;
@@ -22,6 +22,17 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
       ...config,
       ...patch,
     });
+  };
+
+  const updateColor = (key: 'panelBackgroundColor' | 'textColor' | 'accentColor', value: string) => {
+    if (!/^#[0-9a-fA-F]{6}$/.test(value)) return;
+    update({ [key]: value } as Partial<Required<PluginConfig>>);
+  };
+
+  const filterOption = (inputValue: string, option: Record<string, unknown>) => {
+    const keyword = inputValue.trim().toLowerCase();
+    if (!keyword) return true;
+    return `${option.label || ''}${option.fieldName || ''}${option.value || ''}`.toLowerCase().includes(keyword);
   };
 
   useEffect(() => {
@@ -126,6 +137,7 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
           <Select
             value={config.designerValue || undefined}
             optionList={designerOptions}
+            filter={filterOption}
             placeholder={
               config.designerFieldId
                 ? designerOptions.length ? '请选择设计师' : '未读取到设计师'
@@ -149,6 +161,7 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
           <Select
             value={config.contentFieldId || undefined}
             optionList={contentOptions}
+            filter={filterOption}
             placeholder={
               contentOptions.length ? '请选择数据列分类' : '未读取到可用分类列'
             }
@@ -173,6 +186,36 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
           <span>显示最后更新时间</span>
         </label>
 
+        <label className="config-check">
+          <input
+            type="checkbox"
+            checked={config.showStatusTag}
+            onChange={(event) => update({ showStatusTag: event.currentTarget.checked })}
+          />
+          <span>显示数据状态标签</span>
+        </label>
+
+        <div className="config-field">
+          <Typography.Text strong>文字展示方式</Typography.Text>
+          <Typography.Text type="secondary" className="config-help">
+            长段内容建议用智能分段；已经手动换行的内容可按原文展示；带小标题的总结可用小标题模式。
+          </Typography.Text>
+          <Select
+            value={config.textDisplayMode}
+            optionList={TEXT_DISPLAY_MODE_OPTIONS}
+            onChange={(value) => update({ textDisplayMode: value as TextDisplayMode })}
+          />
+        </div>
+
+        <div className="config-field">
+          <Typography.Text strong>正文字号</Typography.Text>
+          <Select
+            value={config.textSize}
+            optionList={TEXT_SIZE_OPTIONS}
+            onChange={(value) => update({ textSize: value as TextSize })}
+          />
+        </div>
+
         <div className="config-field">
           <Typography.Text strong>外观模式</Typography.Text>
           <Select
@@ -195,6 +238,40 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
                 onClick={() => update({ accentColor: color })}
               />
             ))}
+          </div>
+        </div>
+
+        <div className="config-field">
+          <Typography.Text strong>卡片底色</Typography.Text>
+          <div className="color-input-row">
+            <input
+              type="color"
+              value={config.panelBackgroundColor}
+              aria-label="选择卡片底色"
+              onChange={(event) => updateColor('panelBackgroundColor', event.currentTarget.value)}
+            />
+            <Input
+              value={config.panelBackgroundColor}
+              placeholder="#ffffff"
+              onChange={(value) => updateColor('panelBackgroundColor', value)}
+            />
+          </div>
+        </div>
+
+        <div className="config-field">
+          <Typography.Text strong>正文字色</Typography.Text>
+          <div className="color-input-row">
+            <input
+              type="color"
+              value={config.textColor}
+              aria-label="选择正文字色"
+              onChange={(event) => updateColor('textColor', event.currentTarget.value)}
+            />
+            <Input
+              value={config.textColor}
+              placeholder="#1f2329"
+              onChange={(value) => updateColor('textColor', value)}
+            />
           </div>
         </div>
 

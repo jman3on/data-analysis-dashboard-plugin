@@ -56,6 +56,21 @@ const DESIGNER_FIELD_FALLBACKS = ['人员', '设计师', '成员', '姓名', '�
 const TIME_FIELD_FALLBACKS = ['统计周期', '时间', '日期', '月份', '周期', 'period', 'time', 'date'];
 const TITLE_FIELD_FALLBACKS = ['标题', 'title'];
 const UPDATED_AT_FIELD_FALLBACKS = ['最后更新时间', '消息创建时间', 'updatedAt', 'updated_at'];
+const PREFERRED_ANALYSIS_FIELD_ORDER = [
+  '任务结构画像',
+  '交付节奏观察',
+  '过稿过程观察',
+  '改稿反馈分布',
+  '半年高光总结',
+];
+const LOW_PRIORITY_ANALYSIS_FIELD_KEYWORDS = [
+  '统计周期',
+  '设计师',
+  '人员',
+  '负责人',
+  '负责任务',
+  '首次尝试',
+];
 const PERIOD_FIELD_CANDIDATES: Array<{ label: string; value: string; names: string[] }> = [
   { label: '周', value: 'week', names: ['周', '周报', '本周'] },
   { label: '月', value: 'month', names: ['月', '月报', '本月'] },
@@ -104,6 +119,14 @@ function parseDashboardState(value: unknown): DashboardState | undefined {
     return value as DashboardState;
   }
   return undefined;
+}
+
+function isEmbeddedInHost(): boolean {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
 }
 
 function normalizeConfig(config: unknown, fallbackState: DashboardState): PluginConfig {
@@ -207,6 +230,30 @@ function pickCellString(fields: UnknownRecord, fieldMetas: FieldMetaLike[], keys
 
 function normalizeComparableText(value?: string): string {
   return (value || '').replace(/\s+/g, '').toLowerCase();
+}
+
+function sortAnalysisFieldOptions(options: DataFieldOption[]): DataFieldOption[] {
+  return options
+    .map((option, index) => ({ option, index }))
+    .sort((first, second) => {
+      const firstLabel = first.option.fieldName || first.option.label;
+      const secondLabel = second.option.fieldName || second.option.label;
+      const firstPreferred = PREFERRED_ANALYSIS_FIELD_ORDER.indexOf(firstLabel);
+      const secondPreferred = PREFERRED_ANALYSIS_FIELD_ORDER.indexOf(secondLabel);
+
+      if (firstPreferred !== -1 || secondPreferred !== -1) {
+        if (firstPreferred === -1) return 1;
+        if (secondPreferred === -1) return -1;
+        return firstPreferred - secondPreferred;
+      }
+
+      const firstLowPriority = LOW_PRIORITY_ANALYSIS_FIELD_KEYWORDS.some((keyword) => firstLabel.includes(keyword));
+      const secondLowPriority = LOW_PRIORITY_ANALYSIS_FIELD_KEYWORDS.some((keyword) => secondLabel.includes(keyword));
+      if (firstLowPriority !== secondLowPriority) return firstLowPriority ? 1 : -1;
+
+      return first.index - second.index;
+    })
+    .map(({ option }) => option);
 }
 
 function fieldMatchesAnyName(field: FieldMetaLike, names: string[]): boolean {
@@ -514,7 +561,7 @@ export async function loadAnalysisFieldOptions(tableId?: string): Promise<DataFi
   try {
     const table = (await withTimeout(officialBase.getTableById?.(tableId))) as TableLike | undefined;
     const fields = (await withTimeout(table?.getFieldMetaList?.())) as FieldMetaLike[] | undefined;
-    return (fields || [])
+    const options = (fields || [])
       .map<DataFieldOption | undefined>((field) => {
         const value = readFieldId(field);
         const label = readFieldName(field) || value;
@@ -522,6 +569,7 @@ export async function loadAnalysisFieldOptions(tableId?: string): Promise<DataFi
         return { label, value, fieldName: label };
       })
       .filter((option): option is DataFieldOption => Boolean(option));
+    return sortAnalysisFieldOptions(options);
   } catch {
     return [];
   }
@@ -643,6 +691,8 @@ export async function readSdkData(
   state: DashboardState = DashboardState.View,
   configOverride?: PluginConfig,
 ): Promise<{ config: PluginConfig; payload: SummaryPayload } | undefined> {
+  if (!isEmbeddedInHost() && !window.BIPluginSDK) return undefined;
+
   const rawSdk = await loadRuntimeSdk();
   if (!rawSdk) return undefined;
 
@@ -761,9 +811,14 @@ export async function saveDashboardConfig(config: PluginConfig): Promise<boolean
         periodFields: [],
         title: config.title,
         showUpdatedAt: config.showUpdatedAt,
+        showStatusTag: config.showStatusTag,
         defaultPeriod: config.defaultPeriod,
         accentColor: config.accentColor,
+        panelBackgroundColor: config.panelBackgroundColor,
+        textColor: config.textColor,
         appearanceMode: config.appearanceMode,
+        textDisplayMode: config.textDisplayMode,
+        textSize: config.textSize,
       },
     }),
   );

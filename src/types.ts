@@ -7,6 +7,8 @@ export enum DashboardState {
 
 export type PeriodKey = string;
 export type AppearanceMode = 'auto' | 'light' | 'dark';
+export type TextDisplayMode = 'auto' | 'preserve' | 'section';
+export type TextSize = 'small' | 'medium' | 'large';
 
 export interface PeriodFieldConfig {
   label: string;
@@ -25,9 +27,14 @@ export interface PluginConfig {
   periodFields?: PeriodFieldConfig[];
   title?: string;
   showUpdatedAt?: boolean;
+  showStatusTag?: boolean;
   defaultPeriod?: PeriodKey;
   accentColor?: string;
+  panelBackgroundColor?: string;
+  textColor?: string;
   appearanceMode?: AppearanceMode;
+  textDisplayMode?: TextDisplayMode;
+  textSize?: TextSize;
   state?: DashboardState;
   dataConditions?: unknown;
 }
