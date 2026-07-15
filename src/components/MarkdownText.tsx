@@ -11,6 +11,7 @@ type InlinePart = string | React.ReactElement;
 
 const SECTION_TITLE_PATTERN = /^(.{2,18})([:：])\s*(.+)$/;
 const SENTENCE_PATTERN = /[^。！？!?]+[。！？!?]?/g;
+const NOTE_LINE_PATTERN = /^[（(].+[）)]$/;
 
 function normalizeLineBreaks(content: string) {
   return content
@@ -41,6 +42,8 @@ function splitLongParagraph(text: string, maxLength = 160) {
 
 function expandSectionLine(line: string, forceSection: boolean) {
   const trimmed = line.trim();
+  if (NOTE_LINE_PATTERN.test(trimmed)) return [line];
+
   const match = trimmed.match(SECTION_TITLE_PATTERN);
   if (!match) return [line];
 
@@ -117,6 +120,10 @@ function renderInline(text: string): InlinePart[] {
   return parts;
 }
 
+function isNoteLine(text: string) {
+  return NOTE_LINE_PATTERN.test(text.trim());
+}
+
 export function MarkdownText({ content, displayMode = 'auto', textSize = 'medium' }: MarkdownTextProps) {
   const normalized = normalizeBracketSections(content, displayMode);
   const lines = normalized.content.split(/\r?\n/);
@@ -176,7 +183,11 @@ export function MarkdownText({ content, displayMode = 'auto', textSize = 'medium
       return;
     }
 
-    nodes.push(<p key={key}>{renderInline(trimmed)}</p>);
+    nodes.push(
+      <p key={key} className={isNoteLine(trimmed) ? 'note-text' : undefined}>
+        {renderInline(trimmed)}
+      </p>,
+    );
   });
 
   flushList('last-list');

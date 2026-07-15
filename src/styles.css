@@ -268,6 +268,12 @@ body {
   margin: 8px 0;
 }
 
+.markdown-text .note-text {
+  font-size: 0.8em;
+  line-height: 1.6;
+  opacity: 0.5;
+}
+
 .markdown-text ul {
   padding-left: 18px;
   margin: 5px 0 8px;
