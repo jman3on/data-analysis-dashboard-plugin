@@ -186,16 +186,19 @@ function cellToString(value: unknown): string | undefined {
   if (value instanceof Date) return value.toISOString();
 
   if (Array.isArray(value)) {
-    const text = value
-      .map((item) => cellToString(item))
-      .filter(Boolean)
-      .join('');
+    const text = isTextSegmentArray(value)
+      ? stringifyTextSegments(value)
+      : value
+        .map((item) => cellToString(item))
+        .filter(Boolean)
+        .join('');
     return text.trim() || undefined;
   }
 
   if (typeof value === 'object') {
     const record = value as UnknownRecord;
     return (
+      cellToString(record.content) ||
       cellToString(record.text) ||
       cellToString(record.name) ||
       cellToString(record.value) ||
@@ -205,6 +208,31 @@ function cellToString(value: unknown): string | undefined {
   }
 
   return undefined;
+}
+
+function isTextSegment(value: unknown): value is UnknownRecord & { text: string } {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as UnknownRecord;
+  return typeof record.text === 'string' && ['text', 'url', 'mention'].includes(String(record.type || 'text'));
+}
+
+function isTextSegmentArray(value: unknown[]): value is Array<UnknownRecord & { text: string }> {
+  return value.length > 0 && value.every(isTextSegment);
+}
+
+function stringifyTextSegments(segments: Array<UnknownRecord & { text: string }>): string {
+  const parts = segments.map((segment) => segment.text).filter((text) => text.length > 0);
+  if (!parts.length) return '';
+  if (parts.some((part) => /\r?\n/.test(part))) return parts.join('');
+
+  const looksLikeParagraphs =
+    parts.length > 1 &&
+    parts.every((part) => {
+      const trimmed = part.trim();
+      return trimmed.length >= 12 || /[。！？!?；;）)]$/.test(trimmed);
+    });
+
+  return parts.join(looksLikeParagraphs ? '\n\n' : '');
 }
 
 function pickCellString(fields: UnknownRecord, fieldMetas: FieldMetaLike[], keys: string[]): string | undefined {

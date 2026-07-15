@@ -10,7 +10,7 @@ interface MarkdownTextProps {
 type InlinePart = string | React.ReactElement;
 
 const SECTION_TITLE_PATTERN = /^(.{2,18})([:：])\s*(.+)$/;
-const SENTENCE_PATTERN = /[^。！？!?；;]+[。！？!?；;]?/g;
+const SENTENCE_PATTERN = /[^。！？!?]+[。！？!?]?/g;
 
 function normalizeLineBreaks(content: string) {
   return content
@@ -20,7 +20,7 @@ function normalizeLineBreaks(content: string) {
     .trim();
 }
 
-function splitLongParagraph(text: string, maxLength = 72) {
+function splitLongParagraph(text: string, maxLength = 160) {
   const sentences = text.match(SENTENCE_PATTERN)?.map((sentence) => sentence.trim()).filter(Boolean) || [text];
   const paragraphs: string[] = [];
   let current = '';
@@ -56,6 +56,7 @@ function normalizeBracketSections(content: string, displayMode: TextDisplayMode)
   const forceSection = displayMode === 'section';
 
   if (!hasBracketSections && !forceSection) {
+    const hasManualLineBreaks = contentWithLineBreaks.includes('\n');
     const normalizedLines = contentWithLineBreaks
       .split('\n')
       .flatMap((line) => expandSectionLine(line, false))
@@ -63,7 +64,7 @@ function normalizeBracketSections(content: string, displayMode: TextDisplayMode)
         if (displayMode !== 'auto') return [line];
         const trimmed = line.trim();
         if (!trimmed || /^#{1,3}\s+/.test(trimmed) || /^[-*]\s+/.test(trimmed)) return [line];
-        if (contentWithLineBreaks.includes('\n') && trimmed.length <= 56) return [line];
+        if (hasManualLineBreaks) return [line];
         return splitLongParagraph(trimmed);
       })
       .join('\n\n')
@@ -87,7 +88,7 @@ function normalizeBracketSections(content: string, displayMode: TextDisplayMode)
       .flatMap((line) => {
         const trimmed = line.trim();
         if (!trimmed || /^#{1,3}\s+/.test(trimmed) || /^[-*]\s+/.test(trimmed)) return [line];
-        return displayMode === 'preserve' ? [line] : splitLongParagraph(trimmed, 84);
+        return displayMode === 'preserve' ? [line] : splitLongParagraph(trimmed, 160);
       })
       .join('\n\n')
       .replace(/\n{3,}/g, '\n\n')
