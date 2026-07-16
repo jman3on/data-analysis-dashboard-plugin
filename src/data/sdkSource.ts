@@ -473,8 +473,22 @@ function readVisiblePeriodsFromDashboardData(
   const visible = new Set<PeriodKey>();
   matrix.flat().forEach((cell) => {
     const normalized = normalizeComparableText(cellDisplayText(cell));
-    const matched = optionByText.get(normalized);
-    if (matched) visible.add(matched);
+    const exactMatch = optionByText.get(normalized);
+    if (exactMatch) {
+      visible.add(exactMatch);
+      return;
+    }
+
+    periodOptions.forEach((option) => {
+      const normalizedLabel = normalizeComparableText(option.label);
+      const normalizedValue = normalizeComparableText(option.value);
+      if (
+        (normalizedLabel && normalized.includes(normalizedLabel)) ||
+        (normalizedValue && normalized.includes(normalizedValue))
+      ) {
+        visible.add(option.value);
+      }
+    });
   });
 
   return Array.from(visible);
@@ -837,9 +851,18 @@ export async function readSdkData(
     rawData = undefined;
   }
 
+  let periodProbeData: unknown = rawData;
+  if (!shouldPreview && sdk.getPreviewData && hasDataConditions) {
+    try {
+      periodProbeData = await withTimeout(sdk.getPreviewData(dataConditions));
+    } catch {
+      periodProbeData = rawData;
+    }
+  }
+
   const basePayload = await readBaseTablePayload(config).catch(() => undefined);
   if (basePayload?.summary) {
-    const visiblePeriods = readVisiblePeriodsFromDashboardData(rawData, basePayload.periodOptions);
+    const visiblePeriods = readVisiblePeriodsFromDashboardData(periodProbeData, basePayload.periodOptions);
     return {
       config,
       payload: applyVisiblePeriodSelection(basePayload, visiblePeriods),
@@ -848,7 +871,7 @@ export async function readSdkData(
 
   const dashboardPayload = readDashboardMatrixPayload(rawData, config);
   if (dashboardPayload?.summary) {
-    const visiblePeriods = readVisiblePeriodsFromDashboardData(rawData, dashboardPayload.periodOptions);
+    const visiblePeriods = readVisiblePeriodsFromDashboardData(periodProbeData, dashboardPayload.periodOptions);
     return {
       config,
       payload: applyVisiblePeriodSelection(dashboardPayload, visiblePeriods),
