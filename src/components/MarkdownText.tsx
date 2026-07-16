@@ -1,26 +1,99 @@
 import React from 'react';
+import { TextDisplayMode, TextSize } from '../types';
 
 interface MarkdownTextProps {
   content: string;
+  displayMode?: TextDisplayMode;
+  textSize?: TextSize;
 }
 
 type InlinePart = string | React.ReactElement;
 
-function normalizeBracketSections(content: string) {
-  const contentWithLineBreaks = content.replace(/<br\s*\/?>/gi, '\n');
+const SECTION_TITLE_PATTERN = /^(.{2,18})([:：])\s*(.+)$/;
+const SENTENCE_PATTERN = /[^。！？!?]+[。！？!?]?/g;
+const NOTE_LINE_PATTERN = /^[（(].+[）)]$/;
+
+function normalizeLineBreaks(content: string) {
+  return content
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .trim();
+}
+
+function splitLongParagraph(text: string, maxLength = 160) {
+  const sentences = text.match(SENTENCE_PATTERN)?.map((sentence) => sentence.trim()).filter(Boolean) || [text];
+  const paragraphs: string[] = [];
+  let current = '';
+
+  sentences.forEach((sentence) => {
+    const next = current ? `${current}${sentence}` : sentence;
+    if (current && next.length > maxLength) {
+      paragraphs.push(current);
+      current = sentence;
+      return;
+    }
+    current = next;
+  });
+
+  if (current) paragraphs.push(current);
+  return paragraphs.length ? paragraphs : [text];
+}
+
+function expandSectionLine(line: string, forceSection: boolean) {
+  const trimmed = line.trim();
+  if (NOTE_LINE_PATTERN.test(trimmed)) return [line];
+
+  const match = trimmed.match(SECTION_TITLE_PATTERN);
+  if (!match) return [line];
+
+  const [, title, , body] = match;
+  const shouldSplit = forceSection || /^[一二三四五六七八九十\d.、（）()A-Za-z\s-]*[\u4e00-\u9fa5]{2,}$/.test(title);
+  return shouldSplit ? [`### ${title.trim()}`, body.trim()] : [line];
+}
+
+function normalizeBracketSections(content: string, displayMode: TextDisplayMode) {
+  const contentWithLineBreaks = normalizeLineBreaks(content);
   const hasBracketSections = /【[^】]+】/.test(contentWithLineBreaks);
-  if (!hasBracketSections) {
+  const hasMarkdownHeadings = /^#{1,3}\s+/m.test(contentWithLineBreaks);
+  const forceSection = displayMode === 'section';
+
+  if (!hasBracketSections && !forceSection) {
+    const hasManualLineBreaks = contentWithLineBreaks.includes('\n');
+    const normalizedLines = contentWithLineBreaks
+      .split('\n')
+      .flatMap((line) => expandSectionLine(line, false))
+      .flatMap((line) => {
+        if (displayMode !== 'auto') return [line];
+        const trimmed = line.trim();
+        if (!trimmed || /^#{1,3}\s+/.test(trimmed) || /^[-*]\s+/.test(trimmed)) return [line];
+        if (hasManualLineBreaks) return [line];
+        return splitLongParagraph(trimmed);
+      })
+      .join('\n\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
     return {
-      content: contentWithLineBreaks,
+      content: normalizedLines,
       hasBracketSections,
+      hasMarkdownHeadings,
     };
   }
 
   return {
     hasBracketSections,
+    hasMarkdownHeadings,
     content: contentWithLineBreaks
       .replace(/\s*【([^】]+)】\s*/g, '\n\n### $1\n')
-      .replace(/([。！？!?])\s*/g, '$1\n')
+      .split('\n')
+      .flatMap((line) => expandSectionLine(line, forceSection))
+      .flatMap((line) => {
+        const trimmed = line.trim();
+        if (!trimmed || /^#{1,3}\s+/.test(trimmed) || /^[-*]\s+/.test(trimmed)) return [line];
+        return displayMode === 'preserve' ? [line] : splitLongParagraph(trimmed, 160);
+      })
+      .join('\n\n')
       .replace(/\n{3,}/g, '\n\n')
       .trim(),
   };
@@ -47,8 +120,12 @@ function renderInline(text: string): InlinePart[] {
   return parts;
 }
 
-export function MarkdownText({ content }: MarkdownTextProps) {
-  const normalized = normalizeBracketSections(content);
+function isNoteLine(text: string) {
+  return NOTE_LINE_PATTERN.test(text.trim());
+}
+
+export function MarkdownText({ content, displayMode = 'auto', textSize = 'medium' }: MarkdownTextProps) {
+  const normalized = normalizeBracketSections(content, displayMode);
   const lines = normalized.content.split(/\r?\n/);
   const nodes: React.ReactNode[] = [];
   let listItems: string[] = [];
@@ -100,16 +177,20 @@ export function MarkdownText({ content }: MarkdownTextProps) {
       return;
     }
 
-    if (normalized.hasBracketSections && !hasRenderedHeading) {
+    if ((normalized.hasBracketSections || normalized.hasMarkdownHeadings) && !hasRenderedHeading) {
       nodes.push(<h2 key={key}>{renderInline(trimmed)}</h2>);
       hasRenderedHeading = true;
       return;
     }
 
-    nodes.push(<p key={key}>{renderInline(trimmed)}</p>);
+    nodes.push(
+      <p key={key} className={isNoteLine(trimmed) ? 'note-text' : undefined}>
+        {renderInline(trimmed)}
+      </p>,
+    );
   });
 
   flushList('last-list');
 
-  return <article className="markdown-text">{nodes}</article>;
+  return <article className={`markdown-text text-size-${textSize}`}>{nodes}</article>;
 }

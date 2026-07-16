@@ -1,5 +1,5 @@
 import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Select, Spin, Tag, Toast, Typography } from '@douyinfe/semi-ui';
+import { Button, Spin, Tag, Toast, Typography } from '@douyinfe/semi-ui';
 import { IconRefresh } from '@douyinfe/semi-icons';
 import { bridge } from '@lark-base-open/js-sdk';
 import { DEFAULT_CONFIG, PERIOD_OPTIONS } from './constants';
@@ -25,6 +25,14 @@ function normalizeTheme(theme: unknown): ResolvedTheme | undefined {
 function applyResolvedTheme(theme: ResolvedTheme) {
   document.documentElement.dataset.theme = theme;
   document.body.setAttribute('theme-mode', theme);
+}
+
+function isEmbeddedInHost(): boolean {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
 }
 
 export default function App(props: AppProps) {
@@ -70,7 +78,12 @@ export default function App(props: AppProps) {
   const hasConfiguredSource = Boolean(config.tableId && config.designerValue && config.contentFieldId);
   const hideDemoData = needsSetup || (hasConfiguredSource && data?.source === 'demo');
   const visibleSummary = hideDemoData ? '' : summary;
-  const shellStyle = { '--accent': config.accentColor } as CSSProperties;
+  const showInlineTitle = !isEmbeddedInHost();
+  const shellStyle = {
+    '--accent': config.accentColor,
+    '--surface': config.panelBackgroundColor,
+    '--text': config.textColor,
+  } as CSSProperties;
 
   useEffect(() => {
     refresh();
@@ -134,6 +147,10 @@ export default function App(props: AppProps) {
       markDashboardRendered().catch(() => undefined);
     }
   }, [loading, data, period]);
+
+  useEffect(() => {
+    document.title = config.title || '图表解读辅助';
+  }, [config.title]);
 
   useEffect(() => {
     if (!data || !periodOptions.length) return;
@@ -210,25 +227,45 @@ export default function App(props: AppProps) {
     >
       <section className="summary-panel">
         <header className="panel-header">
-          <div className="title-block">
-            <Typography.Title heading={4}>{config.title || '数据分析'}</Typography.Title>
+          {showInlineTitle && (
+            <div className="title-block">
+              <Typography.Title heading={4}>{config.title || '图表解读辅助'}</Typography.Title>
+              {(config.showStatusTag || state === DashboardState.FullScreen) && (
+                <div className="meta-row">
+                  {config.showStatusTag && (
+                    <Tag color={hideDemoData || data?.source === 'demo' ? 'amber' : 'green'} size="small">
+                      {needsSetup ? '等待配置' : hideDemoData ? '等待数据' : data?.source === 'demo' ? '演示数据' : '实时数据'}
+                    </Tag>
+                  )}
+                  {state === DashboardState.FullScreen && <Tag size="small">全屏</Tag>}
+                </div>
+              )}
+            </div>
+          )}
+          {!showInlineTitle && (config.showStatusTag || state === DashboardState.FullScreen) && (
             <div className="meta-row">
-              <Tag color={hideDemoData || data?.source === 'demo' ? 'amber' : 'green'} size="small">
-                {needsSetup ? '等待配置' : hideDemoData ? '等待数据' : data?.source === 'demo' ? '演示数据' : '实时数据'}
-              </Tag>
+              {config.showStatusTag && (
+                <Tag color={hideDemoData || data?.source === 'demo' ? 'amber' : 'green'} size="small">
+                  {needsSetup ? '等待配置' : hideDemoData ? '等待数据' : data?.source === 'demo' ? '演示数据' : '实时数据'}
+                </Tag>
+              )}
               {state === DashboardState.FullScreen && <Tag size="small">全屏</Tag>}
             </div>
-          </div>
+          )}
 
           <div className="toolbar">
-            <Select
+            <select
               value={period}
-              optionList={periodOptions}
-              size="small"
               className="period-select"
-              dropdownClassName="period-select-dropdown"
-              onChange={(value) => setPeriod(value as PeriodKey)}
-            />
+              aria-label="选择统计周期"
+              onChange={(event) => setPeriod(event.currentTarget.value as PeriodKey)}
+            >
+              {periodOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
             <Button
               icon={<IconRefresh />}
               aria-label="刷新"
@@ -239,7 +276,17 @@ export default function App(props: AppProps) {
           </div>
         </header>
 
-        <div className="summary-content">{visibleSummary ? <MarkdownText content={visibleSummary} /> : <EmptyGuide />}</div>
+        <div className="summary-content">
+          {visibleSummary ? (
+            <MarkdownText
+              content={visibleSummary}
+              displayMode={config.textDisplayMode}
+              textSize={config.textSize}
+            />
+          ) : (
+            <EmptyGuide />
+          )}
+        </div>
 
         {config.showUpdatedAt && updatedAt && (
           <footer className="panel-footer">

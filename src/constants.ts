@@ -9,11 +9,16 @@ export const DEFAULT_CONFIG: Required<PluginConfig> = {
   designerValue: '',
   timeFieldId: '',
   periodFields: [],
-  title: '数据分析',
+  title: '图表解读辅助',
   showUpdatedAt: true,
+  showStatusTag: false,
   defaultPeriod: 'week',
   accentColor: '#3370ff',
-  appearanceMode: 'auto',
+  panelBackgroundColor: '#ffffff',
+  textColor: '#1f2329',
+  appearanceMode: 'light',
+  textDisplayMode: 'preserve',
+  textSize: 'medium',
   state: DashboardState.View,
   dataConditions: undefined,
 };
@@ -37,9 +42,21 @@ export const COLOR_OPTIONS = [
 ];
 
 export const APPEARANCE_OPTIONS = [
-  { label: '跟随仪表盘', value: 'auto' },
   { label: '浅色', value: 'light' },
+  { label: '跟随仪表盘', value: 'auto' },
   { label: '深色', value: 'dark' },
+];
+
+export const TEXT_DISPLAY_MODE_OPTIONS = [
+  { label: '按原文换行', value: 'preserve' },
+  { label: '智能分段', value: 'auto' },
+  { label: '小标题模式', value: 'section' },
+];
+
+export const TEXT_SIZE_OPTIONS = [
+  { label: '小', value: 'small' },
+  { label: '中', value: 'medium' },
+  { label: '大', value: 'large' },
 ];
 
 export const DEMO_SUMMARIES: Record<PeriodKey, string> = {
