@@ -35,6 +35,20 @@ function isEmbeddedInHost(): boolean {
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function shouldRetryInitialConfigRead(data: DashboardData): boolean {
+  const state = data.config.state || DashboardState.View;
+  const isSetupState = state === DashboardState.Create || state === DashboardState.Config;
+  const missingRequiredConfig = !data.config.tableId || !data.config.designerValue || !data.config.contentFieldId;
+
+  return isEmbeddedInHost() && isSetupState && missingRequiredConfig;
+}
+
 export default function App(props: AppProps) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [draftConfig, setDraftConfig] = useState<Required<PluginConfig> | null>(null);
@@ -43,11 +57,19 @@ export default function App(props: AppProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const previewRequestId = useRef(0);
+  const initialConfigReadPending = useRef(true);
 
   const refresh = async (showToast = false) => {
     try {
       setRefreshing(true);
-      const next = await loadDashboardData(props);
+      let next = await loadDashboardData(props);
+
+      if (!showToast && initialConfigReadPending.current && shouldRetryInitialConfigRead(next)) {
+        await sleep(800);
+        next = await loadDashboardData(props);
+      }
+
+      initialConfigReadPending.current = false;
       setData(next);
       setDraftConfig(next.config);
       setPeriod(next.payload.period || next.config.defaultPeriod || DEFAULT_CONFIG.defaultPeriod);
