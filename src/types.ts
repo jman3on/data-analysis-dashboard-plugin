@@ -58,6 +58,7 @@ export interface SummaryPayload {
   summaries?: Partial<Record<PeriodKey, string>>;
   updatedAtByPeriod?: Partial<Record<PeriodKey, string>>;
   periodOptions?: Array<{ label: string; value: PeriodKey }>;
+  visiblePeriods?: PeriodKey[];
 }
 
 export interface AppProps {

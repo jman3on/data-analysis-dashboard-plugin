@@ -3,6 +3,7 @@ import {
   DashboardState,
   DataFieldOption,
   DataTableOption,
+  PeriodKey,
   PeriodFieldConfig,
   PluginConfig,
   SummaryPayload,
@@ -454,6 +455,79 @@ function readDashboardMatrixPayload(rawData: unknown, config: PluginConfig): Sum
   return undefined;
 }
 
+function readVisiblePeriodsFromDashboardData(
+  rawData: unknown,
+  periodOptions?: Array<{ label: string; value: PeriodKey }>,
+): PeriodKey[] {
+  if (!periodOptions?.length) return [];
+
+  const matrix = normalizeDataMatrix(rawData);
+  if (matrix.length === 0) return [];
+
+  const optionByText = new Map<string, PeriodKey>();
+  periodOptions.forEach((option) => {
+    optionByText.set(normalizeComparableText(option.label), option.value);
+    optionByText.set(normalizeComparableText(option.value), option.value);
+  });
+
+  const visible = new Set<PeriodKey>();
+  matrix.flat().forEach((cell) => {
+    const normalized = normalizeComparableText(cellDisplayText(cell));
+    const matched = optionByText.get(normalized);
+    if (matched) visible.add(matched);
+  });
+
+  return Array.from(visible);
+}
+
+function periodRank(period: PeriodKey, label?: string): number {
+  const text = label || period;
+  const yearMatch = text.match(/(20\d{2})/);
+  const year = yearMatch ? Number(yearMatch[1]) : 0;
+  let unit = 0;
+
+  if (/下半年/.test(text)) unit = 2;
+  else if (/上半年/.test(text)) unit = 1;
+  else {
+    const quarterMatch = text.match(/(?:第?([1-4])季度|Q([1-4]))/i);
+    const monthMatch = text.match(/(?:^|[^\d])([1-9]|1[0-2])月/);
+    if (quarterMatch) unit = 10 + Number(quarterMatch[1] || quarterMatch[2]);
+    if (monthMatch) unit = 20 + Number(monthMatch[1]);
+  }
+
+  return year * 100 + unit;
+}
+
+function pickLatestPeriod(payload: SummaryPayload): PeriodKey | undefined {
+  const summaries = payload.summaries || {};
+  const candidates = (payload.periodOptions?.length
+    ? payload.periodOptions.map((option, index) => ({ ...option, index }))
+    : Object.keys(summaries).map((value, index) => ({ label: value, value, index })))
+    .filter((option) => summaries[option.value]);
+
+  if (!candidates.length) return payload.period;
+
+  return candidates
+    .sort((first, second) => {
+      const rankDiff = periodRank(second.value, second.label) - periodRank(first.value, first.label);
+      return rankDiff || second.index - first.index;
+    })[0]?.value;
+}
+
+function applyVisiblePeriodSelection(payload: SummaryPayload, visiblePeriods: PeriodKey[]): SummaryPayload {
+  if (!payload.summary && !payload.summaries) return payload;
+
+  const summaries = payload.summaries || {};
+  const selectablePeriods = visiblePeriods.filter((period) => summaries[period]);
+  const selectedPeriod = selectablePeriods.length === 1 ? selectablePeriods[0] : pickLatestPeriod(payload);
+
+  return {
+    ...payload,
+    visiblePeriods,
+    period: selectedPeriod || payload.period,
+  };
+}
+
 function isValidTableId(tableId: unknown): tableId is string {
   return typeof tableId === 'string' && /^tbl[A-Za-z0-9]/.test(tableId);
 }
@@ -700,6 +774,7 @@ async function resolveDataConditions(config: PluginConfig): Promise<UnknownRecor
 
   const groupFieldIds = [
     config.designerFieldId,
+    config.timeFieldId,
     config.contentTypeFieldId,
   ].filter((fieldId, index, fields): fieldId is string =>
     Boolean(fieldId && fields.indexOf(fieldId) === index),
@@ -764,17 +839,19 @@ export async function readSdkData(
 
   const basePayload = await readBaseTablePayload(config).catch(() => undefined);
   if (basePayload?.summary) {
+    const visiblePeriods = readVisiblePeriodsFromDashboardData(rawData, basePayload.periodOptions);
     return {
       config,
-      payload: basePayload,
+      payload: applyVisiblePeriodSelection(basePayload, visiblePeriods),
     };
   }
 
   const dashboardPayload = readDashboardMatrixPayload(rawData, config);
   if (dashboardPayload?.summary) {
+    const visiblePeriods = readVisiblePeriodsFromDashboardData(rawData, dashboardPayload.periodOptions);
     return {
       config,
-      payload: dashboardPayload,
+      payload: applyVisiblePeriodSelection(dashboardPayload, visiblePeriods),
     };
   }
 
