@@ -38,7 +38,7 @@ function isEmbeddedInHost(): boolean {
 export default function App(props: AppProps) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [draftConfig, setDraftConfig] = useState<Required<PluginConfig> | null>(null);
-  const [period, setPeriod] = useState<PeriodKey>('week');
+  const [period, setPeriod] = useState<PeriodKey>(DEFAULT_CONFIG.defaultPeriod);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -50,7 +50,7 @@ export default function App(props: AppProps) {
       const next = await loadDashboardData(props);
       setData(next);
       setDraftConfig(next.config);
-      setPeriod(next.payload.period || next.config.defaultPeriod || 'week');
+      setPeriod(next.payload.period || next.config.defaultPeriod || DEFAULT_CONFIG.defaultPeriod);
       if (showToast) Toast.success('已刷新');
     } catch (error) {
       Toast.error('读取分析结果失败');
@@ -186,7 +186,7 @@ export default function App(props: AppProps) {
             ? nextConfig.periodFields.map(({ label, value }) => ({ label, value }))
             : PERIOD_OPTIONS;
         const canKeepCurrentPeriod = nextPeriodOptions.some((option) => option.value === period);
-        setPeriod(canKeepCurrentPeriod ? period : next.payload.period || nextPeriodOptions[0]?.value || 'week');
+        setPeriod(canKeepCurrentPeriod ? period : next.payload.period || nextPeriodOptions[0]?.value || DEFAULT_CONFIG.defaultPeriod);
       })
       .catch((error) => {
         Toast.error('读取分析结果失败');

@@ -1,5 +1,19 @@
 import { DashboardState, PeriodKey, PluginConfig } from './types';
 
+export function getCurrentHalfYearPeriod(date = new Date()): PeriodKey {
+  const year = date.getFullYear();
+  const half = date.getMonth() < 6 ? '上半年' : '下半年';
+  return `${year}${half}`;
+}
+
+export function getFallbackPeriodOptions(date = new Date()): Array<{ label: string; value: PeriodKey }> {
+  const year = date.getFullYear();
+  return [
+    { label: `${year}上半年`, value: `${year}上半年` },
+    { label: `${year}下半年`, value: `${year}下半年` },
+  ];
+}
+
 export const DEFAULT_CONFIG: Required<PluginConfig> = {
   tableId: '',
   contentFieldId: '',
@@ -12,7 +26,7 @@ export const DEFAULT_CONFIG: Required<PluginConfig> = {
   title: '图表解读辅助',
   showUpdatedAt: true,
   showStatusTag: false,
-  defaultPeriod: 'week',
+  defaultPeriod: getCurrentHalfYearPeriod(),
   accentColor: '#3370ff',
   panelBackgroundColor: '#ffffff',
   textColor: '#1f2329',
@@ -24,10 +38,7 @@ export const DEFAULT_CONFIG: Required<PluginConfig> = {
 };
 
 export const PERIOD_OPTIONS: Array<{ label: string; value: PeriodKey }> = [
-  { label: '周', value: 'week' },
-  { label: '月', value: 'month' },
-  { label: '季度', value: 'quarter' },
-  { label: '半年', value: 'half' },
+  ...getFallbackPeriodOptions(),
 ];
 
 export const COLOR_OPTIONS = [
