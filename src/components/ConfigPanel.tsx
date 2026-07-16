@@ -102,7 +102,7 @@ export function ConfigPanel({ config, saving, onChange, onSave }: ConfigPanelPro
           <Typography.Text strong>标题</Typography.Text>
           <Input
             value={config.title}
-            placeholder="数据分析"
+            placeholder="图表解读辅助"
             onChange={(value) => update({ title: value })}
           />
         </div>

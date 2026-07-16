@@ -149,7 +149,7 @@ export default function App(props: AppProps) {
   }, [loading, data, period]);
 
   useEffect(() => {
-    document.title = config.title || '数据分析展示器';
+    document.title = config.title || '图表解读辅助';
   }, [config.title]);
 
   useEffect(() => {
@@ -229,7 +229,7 @@ export default function App(props: AppProps) {
         <header className="panel-header">
           {showInlineTitle && (
             <div className="title-block">
-              <Typography.Title heading={4}>{config.title || '数据分析'}</Typography.Title>
+              <Typography.Title heading={4}>{config.title || '图表解读辅助'}</Typography.Title>
               {(config.showStatusTag || state === DashboardState.FullScreen) && (
                 <div className="meta-row">
                   {config.showStatusTag && (

@@ -9,7 +9,7 @@ export const DEFAULT_CONFIG: Required<PluginConfig> = {
   designerValue: '',
   timeFieldId: '',
   periodFields: [],
-  title: '数据分析',
+  title: '图表解读辅助',
   showUpdatedAt: true,
   showStatusTag: false,
   defaultPeriod: 'week',
@@ -17,7 +17,7 @@ export const DEFAULT_CONFIG: Required<PluginConfig> = {
   panelBackgroundColor: '#ffffff',
   textColor: '#1f2329',
   appearanceMode: 'light',
-  textDisplayMode: 'auto',
+  textDisplayMode: 'preserve',
   textSize: 'medium',
   state: DashboardState.View,
   dataConditions: undefined,
@@ -48,8 +48,8 @@ export const APPEARANCE_OPTIONS = [
 ];
 
 export const TEXT_DISPLAY_MODE_OPTIONS = [
-  { label: '智能分段', value: 'auto' },
   { label: '按原文换行', value: 'preserve' },
+  { label: '智能分段', value: 'auto' },
   { label: '小标题模式', value: 'section' },
 ];
 
