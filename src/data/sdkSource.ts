@@ -807,6 +807,7 @@ async function resolveDataConditions(config: PluginConfig): Promise<UnknownRecor
 export async function readSdkData(
   state: DashboardState = DashboardState.View,
   configOverride?: PluginConfig,
+  dashboardDataOverride?: unknown,
 ): Promise<{ config: PluginConfig; payload: SummaryPayload } | undefined> {
   if (!isEmbeddedInHost() && !window.BIPluginSDK) return undefined;
 
@@ -842,7 +843,9 @@ export async function readSdkData(
   let rawData: unknown;
   try {
     rawData =
-      shouldPreview && sdk.getPreviewData && hasDataConditions
+      dashboardDataOverride !== undefined
+        ? dashboardDataOverride
+        : shouldPreview && sdk.getPreviewData && hasDataConditions
         ? await withTimeout(sdk.getPreviewData(dataConditions))
         : !shouldPreview && sdk.getData
           ? await withTimeout(sdk.getData())
@@ -852,7 +855,9 @@ export async function readSdkData(
   }
 
   let periodProbeData: unknown = rawData;
-  if (!shouldPreview && sdk.getPreviewData && hasDataConditions) {
+  if (dashboardDataOverride !== undefined) {
+    periodProbeData = dashboardDataOverride;
+  } else if (!shouldPreview && sdk.getPreviewData && hasDataConditions) {
     try {
       periodProbeData = await withTimeout(sdk.getPreviewData(dataConditions));
     } catch {
@@ -907,13 +912,19 @@ export async function readSdkData(
   };
 }
 
-export async function subscribeSdkChanges(onChange: () => void): Promise<() => void> {
+function readDashboardEventData(eventData: unknown): unknown {
+  if (!eventData || typeof eventData !== 'object') return eventData;
+  const record = eventData as UnknownRecord;
+  return 'data' in record ? record.data : eventData;
+}
+
+export async function subscribeSdkChanges(onChange: (dashboardData?: unknown) => void): Promise<() => void> {
   const rawSdk = await loadRuntimeSdk();
   if (!rawSdk) return () => undefined;
 
   const sdk = getDashboardSdk(rawSdk);
-  sdk.onConfigChange?.(onChange);
-  sdk.onDataChange?.(onChange);
+  sdk.onConfigChange?.(() => onChange());
+  sdk.onDataChange?.((eventData: unknown) => onChange(readDashboardEventData(eventData)));
   return () => undefined;
 }
 

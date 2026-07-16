@@ -41,11 +41,15 @@ function mergePayload(...payloads: Array<SummaryPayload | undefined>): SummaryPa
   return payloads.reduce<SummaryPayload>((merged, payload) => ({ ...merged, ...payload }), {});
 }
 
-export async function loadDashboardData(props?: AppProps, configOverride?: PluginConfig): Promise<DashboardData> {
+export async function loadDashboardData(
+  props?: AppProps,
+  configOverride?: PluginConfig,
+  dashboardDataOverride?: unknown,
+): Promise<DashboardData> {
   const urlData = readUrlData();
   const propPayload = normalizePayload(props?.analysisResult || window.__WEEKLY_SUMMARY_PLUGIN_DATA__);
   const initialState = configOverride?.state || urlData.config.state || DEFAULT_CONFIG.state;
-  const sdkData = await readSdkData(initialState, configOverride);
+  const sdkData = await readSdkData(initialState, configOverride, dashboardDataOverride);
 
   const payload = mergePayload(
     { summaries: DEMO_SUMMARIES, updatedAt: new Date().toISOString() },
