@@ -44,10 +44,10 @@ export default function App(props: AppProps) {
   const [saving, setSaving] = useState(false);
   const previewRequestId = useRef(0);
 
-  const refresh = async (showToast = false, dashboardDataOverride?: unknown) => {
+  const refresh = async (showToast = false) => {
     try {
       setRefreshing(true);
-      const next = await loadDashboardData(props, undefined, dashboardDataOverride);
+      const next = await loadDashboardData(props);
       setData(next);
       setDraftConfig(next.config);
       setPeriod(next.payload.period || next.config.defaultPeriod || 'week');
@@ -89,7 +89,7 @@ export default function App(props: AppProps) {
     refresh();
 
     let cleanup: () => void = () => undefined;
-    subscribeSdkChanges((dashboardData) => refresh(false, dashboardData)).then((unsubscribe) => {
+    subscribeSdkChanges(() => refresh()).then((unsubscribe) => {
       cleanup = unsubscribe;
     });
 
