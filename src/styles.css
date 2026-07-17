@@ -271,7 +271,7 @@ body {
 .markdown-text .note-text {
   font-size: 0.8em;
   line-height: 1.6;
-  opacity: 0.5;
+  color: #8F9293;
 }
 
 .markdown-text ul {
@@ -288,7 +288,7 @@ body {
 }
 
 .markdown-text a {
-  color: #3370ff;
+  color: #1858F0;
   font-weight: 500;
   text-decoration: none;
 }
