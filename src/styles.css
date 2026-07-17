@@ -287,6 +287,16 @@ body {
   font-weight: 700;
 }
 
+.markdown-text a {
+  color: #3370ff;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.markdown-text a:hover {
+  text-decoration: underline;
+}
+
 .empty-guide {
   min-height: 220px;
   display: grid;

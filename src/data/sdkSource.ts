@@ -220,8 +220,24 @@ function isTextSegmentArray(value: unknown[]): value is Array<UnknownRecord & { 
   return value.length > 0 && value.every(isTextSegment);
 }
 
+function escapeMarkdownLinkText(text: string): string {
+  return text.replace(/([\\\]])/g, '\\$1');
+}
+
+function escapeMarkdownLinkUrl(url: string): string {
+  return url.replace(/[()\s]/g, (char) => encodeURIComponent(char));
+}
+
+function segmentToText(segment: UnknownRecord & { text: string }): string {
+  const text = segment.text;
+  const link = cellToString(segment.link) || cellToString(segment.url) || cellToString(segment.href);
+  if (!link) return text;
+
+  return `[${escapeMarkdownLinkText(text)}](${escapeMarkdownLinkUrl(link)})`;
+}
+
 function stringifyTextSegments(segments: Array<UnknownRecord & { text: string }>): string {
-  const parts = segments.map((segment) => segment.text).filter((text) => text.length > 0);
+  const parts = segments.map(segmentToText).filter((text) => text.length > 0);
   if (!parts.length) return '';
   if (parts.some((part) => /\r?\n/.test(part))) return parts.join('');
 

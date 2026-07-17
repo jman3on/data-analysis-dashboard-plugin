@@ -99,9 +99,22 @@ function normalizeBracketSections(content: string, displayMode: TextDisplayMode)
   };
 }
 
+function normalizeLinkText(text: string) {
+  return text.replace(/\\([\]\\])/g, '$1');
+}
+
+function isSafeLink(href: string) {
+  try {
+    const url = new URL(href);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function renderInline(text: string): InlinePart[] {
   const parts: InlinePart[] = [];
-  const pattern = /\*\*(.+?)\*\*/g;
+  const pattern = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|\*\*(.+?)\*\*/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -109,7 +122,20 @@ function renderInline(text: string): InlinePart[] {
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
     }
-    parts.push(<strong key={`${match.index}-${match[1]}`}>{match[1]}</strong>);
+
+    const [, linkText, href, boldText] = match;
+    if (linkText && href && isSafeLink(href)) {
+      parts.push(
+        <a key={`${match.index}-${href}`} href={href} target="_blank" rel="noreferrer">
+          {normalizeLinkText(linkText)}
+        </a>,
+      );
+    } else if (boldText) {
+      parts.push(<strong key={`${match.index}-${boldText}`}>{boldText}</strong>);
+    } else {
+      parts.push(match[0]);
+    }
+
     lastIndex = pattern.lastIndex;
   }
 
