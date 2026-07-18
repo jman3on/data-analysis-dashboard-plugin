@@ -13,7 +13,7 @@ export function EmptyGuide({ needsSetup = false }: EmptyGuideProps) {
         title={needsSetup ? '等待配置内容' : '点击左上角刷新'}
         description={
           <Typography.Text type="secondary">
-            {needsSetup ? '右边选择配置信息后预览内容。' : '数据可能暂时没有拉取成功。'}
+            {needsSetup ? '右边选择配置信息后预览内容。' : '数据拉取失败，请重试'}
           </Typography.Text>
         }
       />
