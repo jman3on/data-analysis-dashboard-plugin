@@ -1,15 +1,19 @@
 import { Empty, Typography } from '@douyinfe/semi-ui';
-import { IconSetting } from '@douyinfe/semi-icons';
+import { IconRefresh, IconSetting } from '@douyinfe/semi-icons';
 
-export function EmptyGuide() {
+interface EmptyGuideProps {
+  needsSetup?: boolean;
+}
+
+export function EmptyGuide({ needsSetup = false }: EmptyGuideProps) {
   return (
     <div className="empty-guide">
       <Empty
-        image={<IconSetting size="extra-large" />}
-        title="等待配置内容"
+        image={needsSetup ? <IconSetting size="extra-large" /> : <IconRefresh size="extra-large" />}
+        title={needsSetup ? '等待配置内容' : '点击左上角刷新'}
         description={
           <Typography.Text type="secondary">
-            右边选择配置信息后预览内容。
+            {needsSetup ? '右边选择配置信息后预览内容。' : '数据可能暂时没有拉取成功。'}
           </Typography.Text>
         }
       />

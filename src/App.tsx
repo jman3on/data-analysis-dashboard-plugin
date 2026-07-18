@@ -49,6 +49,14 @@ function shouldRetryInitialConfigRead(data: DashboardData): boolean {
   return isEmbeddedInHost() && isSetupState && missingRequiredConfig;
 }
 
+function hasConfiguredSource(data: DashboardData): boolean {
+  return Boolean(data.config.tableId && data.config.designerValue && data.config.contentFieldId);
+}
+
+function shouldRetryEmptyDataRead(data: DashboardData): boolean {
+  return isEmbeddedInHost() && hasConfiguredSource(data) && data.source === 'demo';
+}
+
 export default function App(props: AppProps) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [draftConfig, setDraftConfig] = useState<Required<PluginConfig> | null>(null);
@@ -66,6 +74,12 @@ export default function App(props: AppProps) {
 
       if (!showToast && initialConfigReadPending.current && shouldRetryInitialConfigRead(next)) {
         await sleep(800);
+        next = await loadDashboardData(props);
+      }
+
+      for (const delay of [800, 1500]) {
+        if (!shouldRetryEmptyDataRead(next)) break;
+        await sleep(delay);
         next = await loadDashboardData(props);
       }
 
@@ -97,8 +111,8 @@ export default function App(props: AppProps) {
   const state = config.state || DashboardState.View;
   const isSetupState = state === DashboardState.Create || state === DashboardState.Config;
   const needsSetup = isSetupState && (!config.tableId || !config.designerValue || !config.contentFieldId);
-  const hasConfiguredSource = Boolean(config.tableId && config.designerValue && config.contentFieldId);
-  const hideDemoData = needsSetup || (hasConfiguredSource && data?.source === 'demo');
+  const configuredSourceReady = Boolean(config.tableId && config.designerValue && config.contentFieldId);
+  const hideDemoData = needsSetup || (configuredSourceReady && data?.source === 'demo');
   const visibleSummary = hideDemoData ? '' : summary;
   const showInlineTitle = !isEmbeddedInHost();
   const shellStyle = {
@@ -306,7 +320,7 @@ export default function App(props: AppProps) {
               textSize={config.textSize}
             />
           ) : (
-            <EmptyGuide />
+            <EmptyGuide needsSetup={needsSetup} />
           )}
         </div>
 
